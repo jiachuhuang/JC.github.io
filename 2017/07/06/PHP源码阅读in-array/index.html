@@ -93,17 +93,17 @@
 
 
 
-<meta name="description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度O(n) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。12345678910111213141516if (Z_TYPE_P(value) == IS_LONG) &amp;#123;			ZEND_H">
+<meta name="description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度O(n) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。1234567891011121314ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(array), num_id">
 <meta name="keywords" content="PHP">
 <meta property="og:type" content="article">
 <meta property="og:title" content="PHP源码阅读in_array">
 <meta property="og:url" content="http://yoursite.com/2017/07/06/PHP源码阅读in-array/index.html">
 <meta property="og:site_name" content="JC博客">
-<meta property="og:description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度O(n) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。12345678910111213141516if (Z_TYPE_P(value) == IS_LONG) &amp;#123;			ZEND_H">
-<meta property="og:updated_time" content="2017-07-06T02:57:38.000Z">
+<meta property="og:description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度O(n) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。1234567891011121314ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(array), num_id">
+<meta property="og:updated_time" content="2017-07-06T02:59:28.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="PHP源码阅读in_array">
-<meta name="twitter:description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度O(n) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。12345678910111213141516if (Z_TYPE_P(value) == IS_LONG) &amp;#123;			ZEND_H">
+<meta name="twitter:description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度O(n) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。1234567891011121314ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(array), num_id">
 
 
 
@@ -322,7 +322,7 @@
       
         <h2 id="in-array"><a href="#in-array" class="headerlink" title="in_array"></a>in_array</h2><p>函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。</p>
 <h2 id="时间复杂度"><a href="#时间复杂度" class="headerlink" title="时间复杂度"></a>时间复杂度</h2><p>O(n)</p>
-<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">if</span> (Z_TYPE_P(value) == IS_LONG) &#123;</div><div class="line">			ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(<span class="keyword">array</span>), num_idx, str_idx, entry) &#123;</div><div class="line">				<span class="keyword">if</span> (fast_equal_check_long(value, entry)) &#123;</div><div class="line">					<span class="keyword">if</span> (behavior == <span class="number">0</span>) &#123;</div><div class="line">						RETURN_TRUE;</div><div class="line">					&#125; <span class="keyword">else</span> &#123;</div><div class="line">						<span class="keyword">if</span> (str_idx) &#123;</div><div class="line">							RETVAL_STR_COPY(str_idx);</div><div class="line">						&#125; <span class="keyword">else</span> &#123;</div><div class="line">							RETVAL_LONG(num_idx);</div><div class="line">						&#125;</div><div class="line">						<span class="keyword">return</span>;</div><div class="line">					&#125;</div><div class="line">				&#125;</div><div class="line">			&#125; ZEND_HASH_FOREACH_END();</div><div class="line">		&#125;</div></pre></td></tr></table></figure></p>
+<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(<span class="keyword">array</span>), num_idx, str_idx, entry) &#123;</div><div class="line">	<span class="keyword">if</span> (fast_equal_check_long(value, entry)) &#123;</div><div class="line">		<span class="keyword">if</span> (behavior == <span class="number">0</span>) &#123;</div><div class="line">			RETURN_TRUE;</div><div class="line">		&#125; <span class="keyword">else</span> &#123;</div><div class="line">			<span class="keyword">if</span> (str_idx) &#123;</div><div class="line">				RETVAL_STR_COPY(str_idx);</div><div class="line">			&#125; <span class="keyword">else</span> &#123;</div><div class="line">				RETVAL_LONG(num_idx);</div><div class="line">			&#125;</div><div class="line">			<span class="keyword">return</span>;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">&#125; ZEND_HASH_FOREACH_END();</div></pre></td></tr></table></figure></p>
 
       
     </div>
