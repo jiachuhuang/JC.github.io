@@ -100,7 +100,7 @@
 <meta property="og:url" content="http://yoursite.com/2017/07/06/说说Redis的setnx/index.html">
 <meta property="og:site_name" content="JC博客">
 <meta property="og:description" content="setnxRedis的setnx指令，设置一个键值对，当且仅当键不存在的时候，才能设置成功。123456789get test_setnx$-1setnx test_setnx 10:1get test_setnx$210setnx test_setnx 99:0 用法一般会使用setnx来实现锁的功能，解决资源竞争、缓存风暴等问题。例如，在缓存风暴中，没有锁保护的情况下，缓存失效，会导致短时间内">
-<meta property="og:updated_time" content="2017-07-06T06:49:00.000Z">
+<meta property="og:updated_time" content="2017-07-06T07:12:54.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="说说Redis的setnx">
 <meta name="twitter:description" content="setnxRedis的setnx指令，设置一个键值对，当且仅当键不存在的时候，才能设置成功。123456789get test_setnx$-1setnx test_setnx 10:1get test_setnx$210setnx test_setnx 99:0 用法一般会使用setnx来实现锁的功能，解决资源竞争、缓存风暴等问题。例如，在缓存风暴中，没有锁保护的情况下，缓存失效，会导致短时间内">
@@ -326,6 +326,7 @@
 <p>这里在别人获得锁后，也被更新过期时间，但不像版本2.1那样，谁都会频繁更新过期时间，所以不会出现版本2.1那样锁长期有效。</p>
 <h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>这样的锁，肯定不是什么高大上的方法，但成本低，效果不错，满足大部分需求了，在我司的抽奖系统里很多地方都可以看到，经过线上考验。如果想要高大上的实现，可以考虑google chubby。</p>
 <p>参考：<a href="https://redis.io/commands/setnx" target="_blank" rel="external">Redis setnx</a></p>
+<p>github：<a href="https://github.com/jiachuhuang/PHP-Redis-setnx-lock" target="_blank" rel="external">github源码</a></p>
 
       
     </div>
