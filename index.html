@@ -243,6 +243,206 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/06/PHP源码阅读strstr/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="JCHuang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="JC博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/07/06/PHP源码阅读strstr/" itemprop="url">PHP源码阅读strstr</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-06T16:08:50+08:00">
+                2017-07-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="strstr"><a href="#strstr" class="headerlink" title="strstr"></a>strstr</h2><p>搜索字符串在另一字符串中的第一次出现，并返回剩余部分。</p>
+<h2 id="时间复杂度"><a href="#时间复杂度" class="headerlink" title="时间复杂度"></a>时间复杂度</h2><p>O(n+m)</p>
+<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>strstr实现思路是，先查询子串的位置，返回该位置后的字符串。核心函数是 zend_memnstr_ex，使用的子串搜索算法是kmp算法，这个具体就不说了。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// zend_memnstr_ex</span></div><div class="line">zend_memnstr_ex_pre(td, needle, needle_len, <span class="number">0</span>); <span class="comment">// 初始化跳转表</span></div><div class="line"></div><div class="line">p = haystack;</div><div class="line">end -= needle_len;</div><div class="line"></div><div class="line"><span class="keyword">while</span> (p &lt;= end) &#123;</div><div class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; needle_len; i++) &#123;</div><div class="line">		<span class="keyword">if</span> (needle[i] != p[i]) &#123;</div><div class="line">			<span class="keyword">break</span>;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> (i == needle_len) &#123;</div><div class="line">		<span class="keyword">return</span> p;</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> (UNEXPECTED(p == end)) &#123;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">NULL</span>;</div><div class="line">	&#125;</div><div class="line">	p += td[(unsigned char)(p[needle_len])];  <span class="comment">// 如果查询失败，通过跳转表决定搜索从搜索串什么位置开始</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// zend_memnstr_ex_pre 构造跳转表</span></div><div class="line"><span class="comment">// kmp算法重要的一部分，构造跳转表</span></div><div class="line"><span class="comment">// 跳转表是个256位长的数组，可以搜索ASCII 256个字符</span></div><div class="line"><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; <span class="number">256</span>; i++) &#123;</div><div class="line">	td[i] = needle_len + <span class="number">1</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">if</span> (reverse) &#123;</div><div class="line">	<span class="keyword">for</span> (i = needle_len - <span class="number">1</span>; i &gt;= <span class="number">0</span>; i--) &#123;</div><div class="line">		td[(unsigned char)needle[i]] = i + <span class="number">1</span>;</div><div class="line">	&#125;</div><div class="line">&#125; <span class="keyword">else</span> &#123;</div><div class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; needle_len; i++) &#123;</div><div class="line">		<span class="comment">// 例如子串是 aba</span></div><div class="line">		<span class="comment">// 最后跳转表，td = array('a' =&gt; 1, 'b' =&gt; 2, '其他' =&gt; 4)</span></div><div class="line">		td[(unsigned char)needle[i]] = (int)needle_len - i;</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h2 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h2><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">strstr(<span class="string">'bfabceabadde'</span>, <span class="string">'aba'</span>);</div></pre></td></tr></table></figure>
+<p>1、zend_memnstr_ex_pre 构造跳转表，如下：</p>
+<table>
+<thead>
+<tr>
+<th>a</th>
+<th>b</th>
+<th>其他</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<p>2、查询过程</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>b</th>
+<th>f</th>
+<th>a</th>
+<th>b</th>
+<th>c</th>
+<th>e</th>
+<th>a</th>
+<th>b</th>
+<th>a</th>
+<th>d</th>
+<th>d</th>
+<th>e </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>a</td>
+<td>b</td>
+<td>a</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td></td>
+<td></td>
+<td>a</td>
+<td>b</td>
+<td>a</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>a</td>
+<td>b</td>
+<td>a</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">第一步，b ！= a，源码第<span class="number">9</span>行，跳出来；接着，源码<span class="number">19</span>行，查找下一个查询从哪里开始；</div><div class="line">p += td[(unsigned char)(p[needle_len])]，此时的p[needle_len]为<span class="string">'b'</span>；</div><div class="line">相当于，p += td[<span class="string">'b'</span>]，看跳转表，p += <span class="number">2</span>，所以跳到了第二步的位置；</div><div class="line"></div><div class="line">如果使用朴素算法，时间复杂度就是O(n*m)了。</div></pre></td></tr></table></figure>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/06/说说Redis的setnx/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -527,7 +727,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-count">3</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
