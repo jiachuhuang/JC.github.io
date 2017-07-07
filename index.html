@@ -263,6 +263,128 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/07/从抽奖活动总结系统优化/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="JCHuang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="JC博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/07/07/从抽奖活动总结系统优化/" itemprop="url">从抽奖活动总结系统优化</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-07T21:04:37+08:00">
+                2017-07-07
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。</p>
+<h2 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h2><p>检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接口是否会漏掉超时限制，这点很容易被忽略，对接第三方的接口需要多点留意。</p>
+<h2 id="限流"><a href="#限流" class="headerlink" title="限流"></a>限流</h2><p>大考前的检查，压测，通过压测的数据指导，调整nginx最大链接数，系统能力有限，超过最大链接数的直接拒绝请求。<br>限制僵尸用户，我们系统是微信授权的，使用微信的用户验证接口，可以挡掉一部分僵尸用户，联合自身的用户系统，排除刷奖用户的请求，这部分可以减少大部分流量。<br>应用层限制请求频率，限制单个用户一分钟内请求次数，使用redis的hash表存储用户一分钟内的请求次数，一个用户一条记录。</p>
+<h2 id="缓存"><a href="#缓存" class="headerlink" title="缓存"></a>缓存</h2><p>应用场景<br>对于数据量小、更新不频繁的，例如活动信息等，可以考虑用本地缓存，同时也使用redis做二级缓存，提高命中，提高缓存效率；数据量大、更新频繁、增长快的缓存数据使用redis等专用缓存服务。例如：随机获取愿望墙记录列表，通过数据库去随机获取那简直是噩梦，可以用redis的集合保存所有记录id，通过SRANDMEMBER从集合中返回随机id集，再通过id集从redis的hash表中获取每条记录的详细信息。</p>
+<p>缓存更新<br>主动更新缓存，数据库数据更新后，往消息队列插入记录，后台消费程序主动更新缓存；同时添加缓存过期时间，自动淘汰缓存，双保险。</p>
+<p>缓存击穿<br>缓存丢失的瞬间，并发请求下，会瞬间有多个请求到达数据库，查询同一份数据，数据库压力瞬间暴涨，解决方法，可以在请求数据库前上锁（<a href="https://jiachuhuang.github.io/2017/07/06/%E8%AF%B4%E8%AF%B4Redis%E7%9A%84setnx/" target="_blank" rel="external">使用redis setnx实现锁</a>），只允许获得锁更新缓存，没得到锁的等待缓存更新后，直接从缓存获得数据。</p>
+<h2 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h2><p>慢查询优化<br>我们系统平时都会进行压测，根据压测结果和慢查询日志进行sql优化，这点展开说太多了。</p>
+<p>分库<br>我们有时候会同时上几个活动，一般都把不同的活动分摊到不同的数据库上，相当于把流量分摊到不同数据库上。</p>
+<p>主从同步<br>我们配有主从库，主写从读，在主从同步间隙，会遇到从库未同步完成，客户端读不到最新数据，可以在写入主库成功后，往redis插入一条记录，设置过期时间（一般为主从同步需要的时间），读取前，先读取redis，如果记录存在，就从主库返回数据。</p>
+<p>乐观锁<br>抽奖活动扣除奖品数量，在并发下，如果不加保护，很容易超库，一般都使用事务进行扣除，但事务会影响数据性能，我们做法是使用版本号，更新库存的时候，只有版本号对上才能更新成功。</p>
+<h2 id="消息队列"><a href="#消息队列" class="headerlink" title="消息队列"></a>消息队列</h2><p>对于抽奖活动，前端有转盘等过场动画的，可以使用异步的方式，达到削峰填谷的效果；投票这些不需要实时反馈结果的，也可以使用消息队列进行异步处理，消费程序在后台批量处理。使用消息队列需要保证消息不丢失，和防止重复消费消息。</p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/06/PHP-FPM进程模型/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -862,7 +984,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">4</span>
+                <span class="site-state-item-count">5</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>

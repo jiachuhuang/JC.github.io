@@ -93,16 +93,16 @@
 
 
 
-<meta name="description" content="strstr搜索字符串在另一字符串中的第一次出现，并返回剩余部分。 时间复杂度O(n+m) 源码strstr实现思路是，先查询子串的位置，返回该位置后的字符串。核心函数是 zend_memnstr_ex，使用的子串搜索算法是kmp算法，这个具体就不说了。123456789101112131415161718192021222324252627282930313233343536373839// z">
+<meta name="description" content="在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。 代码检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接">
 <meta property="og:type" content="article">
-<meta property="og:title" content="PHP源码阅读strstr">
-<meta property="og:url" content="http://yoursite.com/2017/07/06/PHP源码阅读strstr/index.html">
+<meta property="og:title" content="从抽奖活动总结系统优化">
+<meta property="og:url" content="http://yoursite.com/2017/07/07/从抽奖活动总结系统优化/index.html">
 <meta property="og:site_name" content="JC博客">
-<meta property="og:description" content="strstr搜索字符串在另一字符串中的第一次出现，并返回剩余部分。 时间复杂度O(n+m) 源码strstr实现思路是，先查询子串的位置，返回该位置后的字符串。核心函数是 zend_memnstr_ex，使用的子串搜索算法是kmp算法，这个具体就不说了。123456789101112131415161718192021222324252627282930313233343536373839// z">
-<meta property="og:updated_time" content="2017-07-06T09:00:41.000Z">
+<meta property="og:description" content="在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。 代码检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接">
+<meta property="og:updated_time" content="2017-07-07T16:47:20.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="PHP源码阅读strstr">
-<meta name="twitter:description" content="strstr搜索字符串在另一字符串中的第一次出现，并返回剩余部分。 时间复杂度O(n+m) 源码strstr实现思路是，先查询子串的位置，返回该位置后的字符串。核心函数是 zend_memnstr_ex，使用的子串搜索算法是kmp算法，这个具体就不说了。123456789101112131415161718192021222324252627282930313233343536373839// z">
+<meta name="twitter:title" content="从抽奖活动总结系统优化">
+<meta name="twitter:description" content="在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。 代码检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接">
 
 
 
@@ -130,13 +130,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2017/07/06/PHP源码阅读strstr/"/>
+  <link rel="canonical" href="http://yoursite.com/2017/07/07/从抽奖活动总结系统优化/"/>
 
 
 
 
 
-  <title>PHP源码阅读strstr | JC博客</title>
+  <title>从抽奖活动总结系统优化 | JC博客</title>
   
 
 
@@ -265,7 +265,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/06/PHP源码阅读strstr/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/07/从抽奖活动总结系统优化/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="JCHuang">
@@ -282,7 +282,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">PHP源码阅读strstr</h1>
+          <h1 class="post-title" itemprop="name headline">从抽奖活动总结系统优化</h1>
         
 
         <div class="post-meta">
@@ -294,8 +294,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-06T16:08:50+08:00">
-                2017-07-06
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-07T21:04:37+08:00">
+                2017-07-07
               </time>
             
 
@@ -329,95 +329,17 @@
       
 
       
-        <h2 id="strstr"><a href="#strstr" class="headerlink" title="strstr"></a>strstr</h2><p>搜索字符串在另一字符串中的第一次出现，并返回剩余部分。</p>
-<h2 id="时间复杂度"><a href="#时间复杂度" class="headerlink" title="时间复杂度"></a>时间复杂度</h2><p>O(n+m)</p>
-<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>strstr实现思路是，先查询子串的位置，返回该位置后的字符串。核心函数是 zend_memnstr_ex，使用的子串搜索算法是kmp算法，这个具体就不说了。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// zend_memnstr_ex</span></div><div class="line">zend_memnstr_ex_pre(td, needle, needle_len, <span class="number">0</span>); <span class="comment">// 初始化跳转表</span></div><div class="line"></div><div class="line">p = haystack;</div><div class="line">end -= needle_len;</div><div class="line"></div><div class="line"><span class="keyword">while</span> (p &lt;= end) &#123;</div><div class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; needle_len; i++) &#123;</div><div class="line">		<span class="keyword">if</span> (needle[i] != p[i]) &#123;</div><div class="line">			<span class="keyword">break</span>;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> (i == needle_len) &#123;</div><div class="line">		<span class="keyword">return</span> p;</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> (UNEXPECTED(p == end)) &#123;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">NULL</span>;</div><div class="line">	&#125;</div><div class="line">	p += td[(unsigned char)(p[needle_len])];  <span class="comment">// 如果查询失败，通过跳转表决定搜索从搜索串什么位置开始</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// zend_memnstr_ex_pre 构造跳转表</span></div><div class="line"><span class="comment">// kmp算法重要的一部分，构造跳转表</span></div><div class="line"><span class="comment">// 跳转表是个256位长的数组</span></div><div class="line"><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; <span class="number">256</span>; i++) &#123;</div><div class="line">	td[i] = needle_len + <span class="number">1</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">if</span> (reverse) &#123;</div><div class="line">	<span class="keyword">for</span> (i = needle_len - <span class="number">1</span>; i &gt;= <span class="number">0</span>; i--) &#123;</div><div class="line">		td[(unsigned char)needle[i]] = i + <span class="number">1</span>;</div><div class="line">	&#125;</div><div class="line">&#125; <span class="keyword">else</span> &#123;</div><div class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; needle_len; i++) &#123;</div><div class="line">		<span class="comment">// 例如子串是 aba</span></div><div class="line">		<span class="comment">// 最后跳转表，td = array('a' =&gt; 1, 'b' =&gt; 2, '其他' =&gt; 4)</span></div><div class="line">		td[(unsigned char)needle[i]] = (int)needle_len - i;</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<h2 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h2><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">strstr(<span class="string">'bfabceabadde'</span>, <span class="string">'aba'</span>);</div></pre></td></tr></table></figure>
-<p>1、zend_memnstr_ex_pre 构造跳转表，如下：</p>
-<table>
-<thead>
-<tr>
-<th>a</th>
-<th>b</th>
-<th>其他</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>2</td>
-<td>4</td>
-</tr>
-</tbody>
-</table>
-<p>2、查询过程</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th>b</th>
-<th>f</th>
-<th>a</th>
-<th>b</th>
-<th>c</th>
-<th>e</th>
-<th>a</th>
-<th>b</th>
-<th>a</th>
-<th>d</th>
-<th>d</th>
-<th>e </th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>a</td>
-<td>b</td>
-<td>a</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>2</td>
-<td></td>
-<td></td>
-<td>a</td>
-<td>b</td>
-<td>a</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>3</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td>a</td>
-<td>b</td>
-<td>a</td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">第一步，b ！= a，源码第<span class="number">9</span>行，跳出来；接着，源码<span class="number">19</span>行，查找下一个查询从哪里开始；</div><div class="line">p += td[(unsigned char)(p[needle_len])]，此时的p[needle_len]为<span class="string">'b'</span>；</div><div class="line">相当于，p += td[<span class="string">'b'</span>]，看跳转表，p += <span class="number">2</span>，所以跳到了第二步的位置；</div><div class="line"></div><div class="line">如果使用朴素算法，时间复杂度就是O(n*m)了。</div></pre></td></tr></table></figure>
+        <p>在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。</p>
+<h2 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h2><p>检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接口是否会漏掉超时限制，这点很容易被忽略，对接第三方的接口需要多点留意。</p>
+<h2 id="限流"><a href="#限流" class="headerlink" title="限流"></a>限流</h2><p>大考前的检查，压测，通过压测的数据指导，调整nginx最大链接数，系统能力有限，超过最大链接数的直接拒绝请求。<br>限制僵尸用户，我们系统是微信授权的，使用微信的用户验证接口，可以挡掉一部分僵尸用户，联合自身的用户系统，排除刷奖用户的请求，这部分可以减少大部分流量。<br>应用层限制请求频率，限制单个用户一分钟内请求次数，使用redis的hash表存储用户一分钟内的请求次数，一个用户一条记录。</p>
+<h2 id="缓存"><a href="#缓存" class="headerlink" title="缓存"></a>缓存</h2><p>应用场景<br>对于数据量小、更新不频繁的，例如活动信息等，可以考虑用本地缓存，同时也使用redis做二级缓存，提高命中，提高缓存效率；数据量大、更新频繁、增长快的缓存数据使用redis等专用缓存服务。例如：随机获取愿望墙记录列表，通过数据库去随机获取那简直是噩梦，可以用redis的集合保存所有记录id，通过SRANDMEMBER从集合中返回随机id集，再通过id集从redis的hash表中获取每条记录的详细信息。</p>
+<p>缓存更新<br>主动更新缓存，数据库数据更新后，往消息队列插入记录，后台消费程序主动更新缓存；同时添加缓存过期时间，自动淘汰缓存，双保险。</p>
+<p>缓存击穿<br>缓存丢失的瞬间，并发请求下，会瞬间有多个请求到达数据库，查询同一份数据，数据库压力瞬间暴涨，解决方法，可以在请求数据库前上锁（<a href="https://jiachuhuang.github.io/2017/07/06/%E8%AF%B4%E8%AF%B4Redis%E7%9A%84setnx/" target="_blank" rel="external">使用redis setnx实现锁</a>），只允许获得锁更新缓存，没得到锁的等待缓存更新后，直接从缓存获得数据。</p>
+<h2 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h2><p>慢查询优化<br>我们系统平时都会进行压测，根据压测结果和慢查询日志进行sql优化，这点展开说太多了。</p>
+<p>分库<br>我们有时候会同时上几个活动，一般都把不同的活动分摊到不同的数据库上，相当于把流量分摊到不同数据库上。</p>
+<p>主从同步<br>我们配有主从库，主写从读，在主从同步间隙，会遇到从库未同步完成，客户端读不到最新数据，可以在写入主库成功后，往redis插入一条记录，设置过期时间（一般为主从同步需要的时间），读取前，先读取redis，如果记录存在，就从主库返回数据。</p>
+<p>乐观锁<br>抽奖活动扣除奖品数量，在并发下，如果不加保护，很容易超库，一般都使用事务进行扣除，但事务会影响数据性能，我们做法是使用版本号，更新库存的时候，只有版本号对上才能更新成功。</p>
+<h2 id="消息队列"><a href="#消息队列" class="headerlink" title="消息队列"></a>消息队列</h2><p>对于抽奖活动，前端有转盘等过场动画的，可以使用异步的方式，达到削峰填谷的效果；投票这些不需要实时反馈结果的，也可以使用消息队列进行异步处理，消费程序在后台批量处理。使用消息队列需要保证消息不丢失，和防止重复消费消息。</p>
 
       
     </div>
@@ -454,8 +376,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/07/06/说说Redis的setnx/" rel="next" title="说说Redis的setnx">
-                <i class="fa fa-chevron-left"></i> 说说Redis的setnx
+              <a href="/2017/07/06/PHP-FPM进程模型/" rel="next" title="PHP-FPM进程模型">
+                <i class="fa fa-chevron-left"></i> PHP-FPM进程模型
               </a>
             
           </div>
@@ -463,10 +385,6 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/07/06/PHP-FPM进程模型/" rel="prev" title="PHP-FPM进程模型">
-                PHP-FPM进程模型 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -586,7 +504,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#strstr"><span class="nav-number">1.</span> <span class="nav-text">strstr</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#时间复杂度"><span class="nav-number">2.</span> <span class="nav-text">时间复杂度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#源码"><span class="nav-number">3.</span> <span class="nav-text">源码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#例子"><span class="nav-number">4.</span> <span class="nav-text">例子</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#代码"><span class="nav-number">1.</span> <span class="nav-text">代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#限流"><span class="nav-number">2.</span> <span class="nav-text">限流</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#缓存"><span class="nav-number">3.</span> <span class="nav-text">缓存</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据库"><span class="nav-number">4.</span> <span class="nav-text">数据库</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#消息队列"><span class="nav-number">5.</span> <span class="nav-text">消息队列</span></a></li></ol></div>
             
 
           </div>
