@@ -263,6 +263,125 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/08/PHP源码阅读strtr/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="JCHuang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="JC博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/07/08/PHP源码阅读strtr/" itemprop="url">PHP源码阅读strtr</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-08T12:25:14+08:00">
+                2017-07-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="strtr"><a href="#strtr" class="headerlink" title="strtr"></a>strtr</h2><p>转换字符串中特定的字符，但是这个函数使用的方式多种。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">echo</span> strtr(<span class="string">'hello world'</span>, <span class="string">'hw'</span>, <span class="string">'ab'</span>); <span class="comment">// 第一种 aello borld</span></div><div class="line"><span class="keyword">echo</span> strtr(<span class="string">'hello world'</span>, <span class="string">'hw'</span>, <span class="string">'a'</span>); <span class="comment">// 第二种 aello world</span></div><div class="line"><span class="keyword">echo</span> strtr(<span class="string">'hello world'</span>, [<span class="string">'hello'</span> =&gt; <span class="string">'hi'</span>]); <span class="comment">// 第三种 hi world</span></div><div class="line"><span class="keyword">echo</span> strtr(<span class="string">'hello world'</span>, [<span class="string">'he'</span> =&gt; <span class="string">'th'</span>, <span class="string">'hello'</span> =&gt; <span class="string">'hi'</span>]); <span class="comment">// 第四种 hi world</span></div></pre></td></tr></table></figure></p>
+<h2 id="时间复杂度"><a href="#时间复杂度" class="headerlink" title="时间复杂度"></a>时间复杂度</h2><p>O(n)，最差是O(n*m)</p>
+<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>以下根据每种情况逐一分析源码。<br>第一种、第二种，也是最常用的，但第二种，只有’h’转换成’a’，’w’没有被处理。这种方式的替换，会以短的一方为准。如果from和to其中一个是空串，会直接返回原字符串。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">RETURN_STR(php_strtr_ex(str,</div><div class="line">		  Z_STRVAL_P(from),</div><div class="line">		  to,</div><div class="line">		  MIN(Z_STRLEN_P(from), to_len)));</div><div class="line"><span class="comment">// 从源码MIN(Z_STRLEN_P(from), to_len))可以看出来，以from、to两个字符串短的为准，剩余的会被忽略掉，所以可以解释第二种情况'w'被忽略掉</span></div><div class="line"></div><div class="line"><span class="comment">// 同理，以下to中的'b'也会被忽略掉</span></div><div class="line">strtr(<span class="string">'hello world'</span>, <span class="string">'h'</span>, <span class="string">'ab'</span>); <span class="comment">// aello world</span></div></pre></td></tr></table></figure></p>
+<p>接着，我们主要看下php_strtr_ex方法，是怎么实现字符转换。源码是使用hash表实现，hash表把from的每个字符，一一对应为to的相应位置的字符。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">static</span> zend_string *php_strtr_ex(zend_string *str, char *str_from, char *str_to, size_t trlen)</div><div class="line">&#123;</div><div class="line">	<span class="comment">// trlen的值就是MIN(Z_STRLEN_P(from), to_len))</span></div><div class="line">	<span class="comment">// 先构建一个hash表，用php伪代码来解释第一种情况构建好的hash表</span></div><div class="line">	<span class="comment">// array('g'=&gt;'g','h'=&gt;'a','i'=&gt;'i','w'=&gt;'b')</span></div><div class="line">	unsigned char xlat[<span class="number">256</span>], j = <span class="number">0</span>;</div><div class="line">	<span class="keyword">do</span> &#123; xlat[j] = j; &#125; <span class="keyword">while</span> (++j != <span class="number">256</span>);</div><div class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; trlen; i++) &#123;</div><div class="line">		xlat[(size_t)(unsigned char) str_from[i]] = str_to[i];</div><div class="line">	&#125;	</div><div class="line"></div><div class="line">	<span class="comment">// 接着遍历字符串，从hash表中找到转换的字符</span></div><div class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; ZSTR_LEN(str); i++) &#123;</div><div class="line">		<span class="keyword">if</span> (ZSTR_VAL(str)[i] != xlat[(size_t)(unsigned char) ZSTR_VAL(str)[i]]) &#123;</div><div class="line">			new_str = zend_string_alloc(ZSTR_LEN(str), <span class="number">0</span>);</div><div class="line">			memcpy(ZSTR_VAL(new_str), ZSTR_VAL(str), i);</div><div class="line">			<span class="comment">// 从hash表中找到转换的字符</span></div><div class="line">			ZSTR_VAL(new_str)[i] = xlat[(size_t)(unsigned char) ZSTR_VAL(str)[i]];</div><div class="line">			<span class="keyword">break</span>;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">for</span> (;i &lt; ZSTR_LEN(str); i++) &#123;</div><div class="line">		<span class="comment">// 从hash表中找到转换的字符</span></div><div class="line">		ZSTR_VAL(new_str)[i] = xlat[(size_t)(unsigned char) ZSTR_VAL(str)[i]];</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>第三种、第四种from是个数组，如果from是数组，情况就不是一对一的字符转换，是字符串对字符串的转换了，把key整个字符串转换成value字符串。</p>
+<p>第三种，from数组只有一对键值对，实现思路是，根据kmp算法在主串中搜索key（被替换的字符串）的位置，如果找到，就使用value替换掉。kmp本身的效率是O(n)，所以如果字符串内进行了m次替换，这种情况下strtr效率会是O(n*m)<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 搜索被替换的字符串的所有位置</span></div><div class="line">e = s = ZSTR_VAL(new_str);</div><div class="line">end = ZSTR_VAL(haystack) + ZSTR_LEN(haystack);</div><div class="line"><span class="comment">// php_memnstr搜索 被替换的字符串 的所有位置，并替换掉</span></div><div class="line"><span class="keyword">for</span> (p = ZSTR_VAL(haystack); (r = (char*)php_memnstr(p, needle, needle_len, end)); p = r + needle_len) &#123;</div><div class="line">	memcpy(e, p, r - p);</div><div class="line">	e += r - p;</div><div class="line">	memcpy(e, str, str_len);</div><div class="line">	e += str_len;</div><div class="line">	(*replace_count)++;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>第四种，通过数组替换多个字符串，这种是各种情况效率最差的<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 先构造所有 被替换的字符串</span></div><div class="line">ZEND_HASH_FOREACH_STR_KEY(pats, str_key) &#123;</div><div class="line"></div><div class="line">	len = ZSTR_LEN(str_key);</div><div class="line"></div><div class="line">	<span class="comment">// 计算所有 被替换的字符串 最长和最短值</span></div><div class="line">	<span class="keyword">if</span> (len &gt; maxlen) &#123;</div><div class="line">		maxlen = len;</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> (len &lt; minlen) &#123;</div><div class="line">		minlen = len;</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="comment">// 记录每个key长度值的hash值</span></div><div class="line">	num_bitset[len / sizeof(zend_ulong)] |= Z_UL(<span class="number">1</span>) &lt;&lt; (len % sizeof(zend_ulong));</div><div class="line">	<span class="comment">// 记录每个key首字符的hash值</span></div><div class="line">	bitset[((unsigned char)ZSTR_VAL(str_key)[<span class="number">0</span>]) / sizeof(zend_ulong)] |= Z_UL(<span class="number">1</span>) &lt;&lt; (((unsigned char)ZSTR_VAL(str_key)[<span class="number">0</span>]) % sizeof(zend_ulong));</div><div class="line">	</div><div class="line">&#125; ZEND_HASH_FOREACH_END();</div><div class="line"></div><div class="line"><span class="comment">// 辅助两个hash表，替换的字符串</span></div><div class="line">old_pos = pos = <span class="number">0</span>;</div><div class="line"><span class="keyword">while</span> (pos &lt;= slen - minlen) &#123;</div><div class="line">	key = str + pos;</div><div class="line">	<span class="comment">// 如果从首字符的hash表匹配到，表示以key[0]字符开头的有可能是被替换的字符串</span></div><div class="line">	<span class="keyword">if</span> (bitset[((unsigned char)key[<span class="number">0</span>]) / sizeof(zend_ulong)] &amp; (Z_UL(<span class="number">1</span>) &lt;&lt; (((unsigned char)key[<span class="number">0</span>]) % sizeof(zend_ulong)))) &#123;</div><div class="line">		len = maxlen;</div><div class="line">		<span class="keyword">if</span> (len &gt; slen - pos) &#123;</div><div class="line">			len = slen - pos;</div><div class="line">		&#125;</div><div class="line">		<span class="comment">// key从maxlen循环到minlen，所以，第四种'hello'和'he'，最先匹配到hello</span></div><div class="line">		<span class="keyword">while</span> (len &gt;= minlen) &#123;</div><div class="line">			<span class="comment">// 如果从长度hash表里面匹配到被替换的字符串里可能的长度，就从from数组里面找到替换的键值对zend_hash_str_find</span></div><div class="line">			<span class="keyword">if</span> ((num_bitset[len / sizeof(zend_ulong)] &amp; (Z_UL(<span class="number">1</span>) &lt;&lt; (len % sizeof(zend_ulong))))) &#123;</div><div class="line">				entry = zend_hash_str_find(pats, key, len);</div><div class="line">				<span class="keyword">if</span> (entry != <span class="keyword">NULL</span>) &#123;</div><div class="line">					zend_string *s = zval_get_string(entry);</div><div class="line">					smart_str_appendl(&amp;result, str + old_pos, pos - old_pos);</div><div class="line">					smart_str_append(&amp;result, s);</div><div class="line">					old_pos = pos + len;</div><div class="line">					pos = old_pos - <span class="number">1</span>;</div><div class="line">					zend_string_release(s);</div><div class="line">					<span class="keyword">break</span>;</div><div class="line">				&#125;</div><div class="line">			&#125;</div><div class="line">			len--;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	pos++;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>这种情况有点复杂，下面的php伪代码翻译一下以上的C语言代码<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line">$bitset = array_fill(<span class="number">0</span>, <span class="number">255</span>, <span class="number">0</span>); <span class="comment">// 首字符的hash表</span></div><div class="line">$num_bitset = array_fill(<span class="number">0</span>, <span class="number">255</span>, <span class="number">0</span>); <span class="comment">// key长度值的hash值</span></div><div class="line"></div><div class="line">$min_len = PHP_INT_MAX;</div><div class="line">$max_len = <span class="number">0</span>;</div><div class="line">$len = <span class="number">0</span>;</div><div class="line"><span class="comment">// echo strtr('hello world', ['he' =&gt; 'th', 'hello' =&gt; 'hi']);</span></div><div class="line">$pats = [<span class="string">'he'</span>, <span class="string">'hello'</span>];</div><div class="line"></div><div class="line"><span class="keyword">foreach</span>($pats <span class="keyword">as</span> $v)&#123;</div><div class="line">	$len = strlen($v);</div><div class="line">	<span class="keyword">if</span>($len &gt; $max_len) &#123;</div><div class="line">		$max_len = $len;</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span>($len &lt; $min_len) &#123;</div><div class="line">		$min_len = $len;</div><div class="line">	&#125;</div><div class="line">	$num_bitset[intdiv($len,<span class="number">8</span>)] |= <span class="number">1</span> &lt;&lt; ($len%<span class="number">8</span>);</div><div class="line">	$bitset[intdiv(ord($v[<span class="number">0</span>]),<span class="number">8</span>)] |= <span class="number">1</span> &lt;&lt; (ord($v[<span class="number">0</span>])%<span class="number">8</span>);</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// print_r(array_unique($num_bitset));</span></div><div class="line"><span class="comment">// print_r(array_unique($bitset));</span></div><div class="line"><span class="comment">// 例如我们匹配hello，首字符是h，长度5</span></div><div class="line"><span class="comment">// 以下两行就是以上C语言的while循环里面两个if判断</span></div><div class="line"><span class="keyword">echo</span> $bitset[intdiv(ord(<span class="string">'h'</span>),<span class="number">8</span>)] &amp; <span class="number">1</span> &lt;&lt; (ord(<span class="string">'h'</span>)%<span class="number">8</span>),PHP_EOL;</div><div class="line"><span class="keyword">echo</span> $num_bitset[intdiv(<span class="number">5</span>,<span class="number">8</span>)] &amp; <span class="number">1</span> &lt;&lt; (<span class="number">5</span>%<span class="number">8</span>),PHP_EOL;</div></pre></td></tr></table></figure></p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/07/从抽奖活动总结系统优化/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -984,7 +1103,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-count">6</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
