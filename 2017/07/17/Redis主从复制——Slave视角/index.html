@@ -1,0 +1,776 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Redis," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="Redis主从复制为了提高性能和系统可用，Redis都会做主从复制，一来可以分担主库压力，二来在主库挂掉的时候从库依旧可以提供服务。Redis的主从复制是异步复制，返回结果给客户端和同步命令到从库是两回事，互不相干，主库也不关心从库的执行结果，对于同步命令执行的结果，从库会直接丢弃并不返回给主库。Redis的主从复制简单高效，但也不太算可靠。  Redis的主从复制是异步复制；全量同步（或增量同步">
+<meta name="keywords" content="Redis">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Redis主从复制——Slave视角">
+<meta property="og:url" content="http://yoursite.com/2017/07/17/Redis主从复制——Slave视角/index.html">
+<meta property="og:site_name" content="JC博客">
+<meta property="og:description" content="Redis主从复制为了提高性能和系统可用，Redis都会做主从复制，一来可以分担主库压力，二来在主库挂掉的时候从库依旧可以提供服务。Redis的主从复制是异步复制，返回结果给客户端和同步命令到从库是两回事，互不相干，主库也不关心从库的执行结果，对于同步命令执行的结果，从库会直接丢弃并不返回给主库。Redis的主从复制简单高效，但也不太算可靠。  Redis的主从复制是异步复制；全量同步（或增量同步">
+<meta property="og:image" content="http://yoursite.com/2017/07/17/Redis主从复制——Slave视角/sync_1.png">
+<meta property="og:updated_time" content="2017-07-17T12:09:14.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Redis主从复制——Slave视角">
+<meta name="twitter:description" content="Redis主从复制为了提高性能和系统可用，Redis都会做主从复制，一来可以分担主库压力，二来在主库挂掉的时候从库依旧可以提供服务。Redis的主从复制是异步复制，返回结果给客户端和同步命令到从库是两回事，互不相干，主库也不关心从库的执行结果，对于同步命令执行的结果，从库会直接丢弃并不返回给主库。Redis的主从复制简单高效，但也不太算可靠。  Redis的主从复制是异步复制；全量同步（或增量同步">
+<meta name="twitter:image" content="http://yoursite.com/2017/07/17/Redis主从复制——Slave视角/sync_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    sidebar: {"position":"right","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/07/17/Redis主从复制——Slave视角/"/>
+
+
+
+
+
+  <title>Redis主从复制——Slave视角 | JC博客</title>
+  
+
+
+
+
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?192e1d8dd47ae5fb30f7e0fc329b34d8";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-right page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">JC博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="https://github.com/jiachuhuang" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/17/Redis主从复制——Slave视角/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="JCHuang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="JC博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Redis主从复制——Slave视角</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-17T20:02:19+08:00">
+                2017-07-17
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="Redis主从复制"><a href="#Redis主从复制" class="headerlink" title="Redis主从复制"></a>Redis主从复制</h2><p>为了提高性能和系统可用，Redis都会做主从复制，一来可以分担主库压力，二来在主库挂掉的时候从库依旧可以提供服务。Redis的主从复制是异步复制，返回结果给客户端和同步命令到从库是两回事，互不相干，主库也不关心从库的执行结果，对于同步命令执行的结果，从库会直接丢弃并不返回给主库。Redis的主从复制简单高效，但也不太算可靠。</p>
+<blockquote>
+<p>Redis的主从复制是异步复制；全量同步（或增量同步）+命令传播</p>
+</blockquote>
+<h2 id="Slave-Server"><a href="#Slave-Server" class="headerlink" title="Slave Server"></a>Slave Server</h2><p>流程</p>
+<p>Slave Server启动初始化配置，根据slaveof配置设置Slave Server的主库host（masterhost）和Slave Server的同步状态（repl_state），和所有Server一样监听客户端链接，开启后台任务。</p>
+<blockquote>
+<p>后台定时任务包含，触发AOF重写、RDB快照、redis监控、状态收集、主从同步相关定时任务等</p>
+<p>主从同步后台定时任务包含，从库连接主库、从库重连主库、从库给主库发送同步进度、主库向从库发送心跳包、主库删除超时从库、主库清除同步缓冲区、主库刷新从库状态等</p>
+</blockquote>
+<p>从库连接主库</p>
+<p>从库链接主库后，开启同步前的准备和交互，同时从库伴随着和主库交互变换自身状态。下面源代码看一下整个流程（代码有删减）<br><figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">syncWithMaster</span><span class="params">(aeEventLoop *el, <span class="keyword">int</span> fd, <span class="keyword">void</span> *privdata, <span class="keyword">int</span> mask)</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * 从库和主库tcp握手成功后，从库的同步状态由REPL_STATE_CONNECT =&gt; REPL_STATE_CONNECTING</div><div class="line">     * 从库向主库发送PING确保可以进行同步操作</div><div class="line">     * 发送PING，等待接收PONG</div><div class="line">     */ </div><div class="line">    <span class="keyword">if</span> (server.repl_state == REPL_STATE_CONNECTING) &#123;</div><div class="line">    	<span class="comment">// 修改同步状态 REPL_STATE_CONNECTING =&gt; REPL_STATE_RECEIVE_PONG</span></div><div class="line">        server.repl_state = REPL_STATE_RECEIVE_PONG;</div><div class="line">        err = sendSynchronousCommand(SYNC_CMD_WRITE,fd,<span class="string">"PING"</span>,<span class="literal">NULL</span>);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * 接收PONG响应，并修改状态 REPL_STATE_RECEIVE_PONG =&gt; REPL_STATE_SEND_AUTH</div><div class="line">     */</div><div class="line">    <span class="keyword">if</span> (server.repl_state == REPL_STATE_RECEIVE_PONG) &#123;</div><div class="line">        err = sendSynchronousCommand(SYNC_CMD_READ,fd,<span class="literal">NULL</span>);</div><div class="line">        server.repl_state = REPL_STATE_SEND_AUTH;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * 以下有多个类似分支，例如：</div><div class="line">     * 发送身份验证信息</div><div class="line">     * 从库同步的端口、IP等信息给主库</div><div class="line">     * 就跳过不罗列了，直接到 同步命令的分支</div><div class="line">     */</div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * 从库会先尝试增量同步（发送psync命令+当前同步的进度repl_offset），这种情况是在从库和主库网络闪断后进行；</div><div class="line">     * 换句话说，如果从库第一次连接主库，那么增量同步是不存在的（毕竟你之前就没有同步过，哪来的增量啊）；</div><div class="line">     * 还有一种情况，如果从库同步进度落后主库同步缓冲区（repl_backlog）太多，也会进行全量同步，具体后话说明</div><div class="line">     */ </div><div class="line">    <span class="keyword">if</span> (server.repl_state == REPL_STATE_SEND_PSYNC) &#123;</div><div class="line">    	<span class="comment">// 发送增量同步请求命令</span></div><div class="line">        <span class="keyword">if</span> (slaveTryPartialResynchronization(fd,<span class="number">0</span>) == PSYNC_WRITE_ERROR) &#123;</div><div class="line">            err = sdsnew(<span class="string">"Write error sending the PSYNC command."</span>);</div><div class="line">            <span class="keyword">goto</span> write_error;</div><div class="line">        &#125;</div><div class="line">        server.repl_state = REPL_STATE_RECEIVE_PSYNC;</div><div class="line">        <span class="keyword">return</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * 接收增量同步请求结果</div><div class="line">     */</div><div class="line">    psync_result = slaveTryPartialResynchronization(fd,<span class="number">1</span>);</div><div class="line">    <span class="keyword">if</span> (psync_result == PSYNC_WAIT_REPLY) <span class="keyword">return</span>; <span class="comment">/* Try again later... */</span></div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * 不支持增量同步，即不支持psync命令，Redis2.8以上才支持</div><div class="line">     * 就进行全量同步，发送sync命令</div><div class="line">     */</div><div class="line">    <span class="keyword">if</span> (psync_result == PSYNC_NOT_SUPPORTED) &#123;</div><div class="line">    	<span class="comment">// 发送sync命令</span></div><div class="line">        <span class="keyword">if</span> (syncWrite(fd,<span class="string">"SYNC\r\n"</span>,<span class="number">6</span>,server.repl_syncio_timeout*<span class="number">1000</span>) == <span class="number">-1</span>) &#123;</div><div class="line"></div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * 发送完同步命令后，回调readSyncBulkPayload方法获取主库回复同步数据</div><div class="line">     */ </div><div class="line">    <span class="keyword">if</span> (aeCreateFileEvent(server.el,fd, AE_READABLE,readSyncBulkPayload,<span class="literal">NULL</span>)</div><div class="line">            == AE_ERR)</div><div class="line">    &#123;</div><div class="line"></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * 修改同步状态为REPL_STATE_TRANSFER，即同步数据传输状态</div><div class="line">     */ </div><div class="line">    server.repl_state = REPL_STATE_TRANSFER;</div><div class="line">    <span class="keyword">return</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<blockquote>
+<p>以上代码有点长，总结一下步骤：1）slave发送自身信息到master；2）尝试增量同步，成功则等待master回送同步数据；3）不支持增量同步或者增量同步失败，则进行全量同步，并等待master回送同步数据。</p>
+</blockquote>
+<h2 id="全量同步"><a href="#全量同步" class="headerlink" title="全量同步"></a>全量同步</h2><p>1、从库发送sync命令给主库，发起全量同步，并等待数据返回</p>
+<p>2、主库接收到sync命令，把内存数据保存到rdb文件并把文件内容发送给从库</p>
+<p>3、从库接收同步数据并保存到本地rdb文件，最后把rdb文件内容写入到内存数据库，至此全量同步完成</p>
+<blockquote>
+<p>以上是简述一下同步流程，但其中并不止那么简单，例如：同时多个slave发起全量同步请求，主库也只会进行一次bgsave，保存内存快照到rdb文件。</p>
+<p>rdb是redis持久化的一种，是当前redis内存数据的快照。所以全量同步，主库发送给从库的是，是内存中每一个key和它对应的value（key =&gt; value）。</p>
+</blockquote>
+<p><img src="/2017/07/17/Redis主从复制——Slave视角/sync_1.png" alt=""> </p>
+<p>以下源码分析第三步操作（代码有删减）<br><figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">readSyncBulkPayload</span><span class="params">(aeEventLoop *el, <span class="keyword">int</span> fd, <span class="keyword">void</span> *privdata, <span class="keyword">int</span> mask)</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">// 读取第一行，获取同步数据量的大小</span></div><div class="line">    <span class="keyword">if</span> (server.repl_transfer_size == <span class="number">-1</span>) &#123;</div><div class="line"></div><div class="line">        <span class="keyword">if</span> (<span class="built_in">strncmp</span>(buf+<span class="number">1</span>,<span class="string">"EOF:"</span>,<span class="number">4</span>) == <span class="number">0</span> &amp;&amp; <span class="built_in">strlen</span>(buf+<span class="number">5</span>) &gt;= CONFIG_RUN_ID_SIZE) &#123;</div><div class="line"></div><div class="line">        &#125; <span class="keyword">else</span> &#123;</div><div class="line">        	<span class="comment">// 同步数据量的大小</span></div><div class="line">            server.repl_transfer_size = strtol(buf+<span class="number">1</span>,<span class="literal">NULL</span>,<span class="number">10</span>);</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// 读取数据</span></div><div class="line">    nread = read(fd,buf,readlen);</div><div class="line"></div><div class="line">    <span class="comment">// 更新最后同步通信时间</span></div><div class="line">    server.repl_transfer_lastio = server.unixtime;</div><div class="line"></div><div class="line">    <span class="comment">// 保存数据到本地rdb文件</span></div><div class="line">    <span class="keyword">if</span> (write(server.repl_transfer_fd,buf,nread) != nread) &#123;</div><div class="line"></div><div class="line">    &#125;</div><div class="line"></div><div class="line"></div><div class="line">    <span class="keyword">if</span> (eof_reached) &#123;</div><div class="line">    	<span class="comment">// 从rdb文件中载入数据到内存</span></div><div class="line">        serverLog(LL_NOTICE, <span class="string">"MASTER &lt;-&gt; SLAVE sync: Loading DB in memory"</span>);</div><div class="line">        <span class="keyword">if</span> (rdbLoad(server.rdb_filename) != C_OK) &#123;</div><div class="line"></div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="comment">// 同步完后，slave修改主库信息，开始接收主库命令扩散</span></div><div class="line">        replicationCreateMasterClient(server.repl_transfer_s);</div><div class="line">        serverLog(LL_NOTICE, <span class="string">"MASTER &lt;-&gt; SLAVE sync: Finished with success"</span>);</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">return</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 同步完后，slave修改主库信息，开始接收主库命令扩散</div><div class="line"> */</div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">replicationCreateMasterClient</span><span class="params">(<span class="keyword">int</span> fd)</span> </span>&#123;</div><div class="line">    server.master = createClient(fd);  <span class="comment">// 这里设置监听接收主库的发送的数据</span></div><div class="line">    server.master-&gt;flags |= CLIENT_MASTER;</div><div class="line">    server.master-&gt;authenticated = <span class="number">1</span>; </div><div class="line">    server.repl_state = REPL_STATE_CONNECTED;  <span class="comment">// 修改从库同步状态</span></div><div class="line">    <span class="comment">/*</span></div><div class="line">     * reploff和replrunid这两个是增量同步的必要参数</div><div class="line">     */</div><div class="line">    server.master-&gt;reploff = server.repl_master_initial_offset; <span class="comment">// master的同步缓冲区的总量（当前从库同步进度）</span></div><div class="line">    <span class="built_in">memcpy</span>(server.master-&gt;replrunid, server.repl_master_runid,</div><div class="line">        <span class="keyword">sizeof</span>(server.repl_master_runid));   <span class="comment">// 保存主库runid</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h2 id="增量同步"><a href="#增量同步" class="headerlink" title="增量同步"></a>增量同步</h2><p>全量同步可以看出存在它的缺点，那就是效率，主从都要进行文件读写，而且还要传输全部数据，其中部分已经在从库中，这部分数据就会显得有点多余了。增量同步，同步的内容也和全量同步有所区别。</p>
+<blockquote>
+<p>全量同步，同步的数据是每一个key和它对应的value（key =&gt; value）；而增量同步，同步的数据是命令，是从库未执行的命令，例如：set key1 value1 。</p>
+</blockquote>
+<p>执行增量同步的条件：</p>
+<p>1）从库已经和该主库进行过一次全量同步</p>
+<p>2）主从网络超时（repl_timeout默认是60秒）重连后</p>
+<p>3）从库同步进度（reploff）存在并且没有落后于该主库同步缓冲区</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">slaveTryPartialResynchronization</span><span class="params">(<span class="keyword">int</span> fd, <span class="keyword">int</span> read_reply)</span> </span>&#123;</div><div class="line">	<span class="comment">// 主库验证从库同步进度和信息，返回+CONTINUE结果给从库，表示即将进行增量同步</span></div><div class="line">    <span class="keyword">if</span> (!<span class="built_in">strncmp</span>(reply,<span class="string">"+CONTINUE"</span>,<span class="number">9</span>)) &#123;</div><div class="line">        <span class="comment">/* Partial resync was accepted, set the replication state accordingly */</span></div><div class="line">        serverLog(LL_NOTICE,</div><div class="line">            <span class="string">"Successful partial resynchronization with master."</span>);</div><div class="line">        sdsfree(reply);</div><div class="line">        <span class="comment">// 从库设置回调接口，等待主库发送增量同步数据</span></div><div class="line">        replicationResurrectCachedMaster(fd);</div><div class="line">        <span class="keyword">return</span> PSYNC_CONTINUE;</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">replicationResurrectCachedMaster</span><span class="params">(<span class="keyword">int</span> newfd)</span> </span>&#123;</div><div class="line">	<span class="comment">// 设置当前从库的master</span></div><div class="line">	<span class="comment">// 设置从库的同步状态为REPL_STATE_CONNECTED</span></div><div class="line">    server.master = server.cached_master;</div><div class="line">    server.cached_master = <span class="literal">NULL</span>;</div><div class="line">    server.master-&gt;fd = newfd;</div><div class="line">    server.master-&gt;flags &amp;= ~(CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP);</div><div class="line">    server.master-&gt;authenticated = <span class="number">1</span>;</div><div class="line">    server.master-&gt;lastinteraction = server.unixtime;</div><div class="line">    server.repl_state = REPL_STATE_CONNECTED;</div><div class="line"></div><div class="line">    <span class="comment">// 设置回调接口readQueryFromClient，等待主库发送增量同步数据</span></div><div class="line">        replicationResurrectCachedMaster(fd);</div><div class="line">    <span class="keyword">if</span> (aeCreateFileEvent(server.el, newfd, AE_READABLE,</div><div class="line">                          readQueryFromClient, server.master)) &#123;</div><div class="line">        serverLog(LL_WARNING,<span class="string">"Error resurrecting the cached master, impossible to add the readable handler: %s"</span>, strerror(errno));</div><div class="line">        freeClientAsync(server.master); <span class="comment">/* Close ASAP. */</span></div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="命令传播"><a href="#命令传播" class="headerlink" title="命令传播"></a>命令传播</h2><p>完成全量同步（增量同步）后，主库接受客户端命令，修改了数据，为了保持主从数据一致，这些命令也需要在从库上执行一遍，哪怎么操作呢？当然不是客户端逐一修改所有从库了，而是由主库执行命令成功后，异步地把命令发送给所有从库。</p>
+<p>这部分主要工作在于主库，就不说了，下一篇主库角度再说。从库接收主库的命令传播，其实和其他客户端的命令一样的行为，只是从库会判断是否来自主库发送的命令，更新自己同步进度，主库不关心从库执行命令的结果，所以从库也不会发送执行结果给主库，省略了一次网络IO。</p>
+<h2 id="心跳检测"><a href="#心跳检测" class="headerlink" title="心跳检测"></a>心跳检测</h2><p>开篇我们说过，Redis会有个定时任务在后台执行，从库会每秒向主库发送ack+同步进度；主库也会定时发送PING命令检测它所有从库的存活。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/*</span></div><div class="line"> * 从库会每秒向主库发送ack+同步进度</div><div class="line"> * psync ack repl_off</div><div class="line"> */</div><div class="line"><span class="keyword">if</span> (server.masterhost &amp;&amp; server.master &amp;&amp;</div><div class="line">    !(server.master-&gt;flags &amp; CLIENT_PRE_PSYNC))</div><div class="line">    replicationSendAck();</div><div class="line"></div><div class="line"><span class="comment">/*</span></div><div class="line"> * 主库定时发送PING命令检测它所有从库的存活</div><div class="line"> */</div><div class="line"><span class="keyword">if</span> ((replication_cron_loops % server.repl_ping_slave_period) == <span class="number">0</span>) &#123;</div><div class="line">    ping_argv[<span class="number">0</span>] = createStringObject(<span class="string">"PING"</span>,<span class="number">4</span>);</div><div class="line">    replicationFeedSlaves(server.slaves, server.slaveseldb,</div><div class="line">        ping_argv, <span class="number">1</span>);</div><div class="line">    decrRefCount(ping_argv[<span class="number">0</span>]);</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h2 id="风险"><a href="#风险" class="headerlink" title="风险"></a>风险</h2><p>Redis的主从复制是很高效，也没有太多花哨的东西，基于异步同步，客户端不需要等待同步结果，但是也是这样的高效同步带来一些风险。</p>
+<p>1）主库发送仅且发送一次命令给从库，如果超时，命令丢失，从库没有接收到，会造成不一致；</p>
+<p>2）从库内存满了，主库也没法知道，而且从库收到命令传播依旧会更新自己同步进度；</p>
+<p>3）异步复制带来的同步间隙，造成短时间内不一致，这点要根据具体业务处理；</p>
+<p>4）客户端修改从库数据，也会导致主从不一致，可以把从库设置成只读；</p>
+<h2 id="废话"><a href="#废话" class="headerlink" title="废话"></a>废话</h2><blockquote>
+<p>从库未全量同步过</p>
+</blockquote>
+<p>Slave：Master，我要增量同步（psync ? -1）</p>
+<p>Master：EXO ME？你没全量同步过，不行，你必须全量同步</p>
+<p>Slave：好的，师父。全量同步（Sync）</p>
+<p>Master：同意。等着吧。</p>
+<p>（Slave等啊等）</p>
+<p>Master：接着，rdb</p>
+<p>Slave：收！</p>
+<p>（Slave全量同步完后，上线工作了，命令传播）</p>
+<p>Master：这是我刚执行完的命令，你执行一下</p>
+<p>Slave：好的（执行完了也不告诉你）</p>
+<p>Master：这是我刚执行完的命令，你执行一下</p>
+<p>Slave：好的（执行完了也不告诉你）</p>
+<p>……</p>
+<blockquote>
+<p>主从网络断开重连后</p>
+</blockquote>
+<p>Slave：师父，刚掉线了，我是不是错过了什么，我要增量同步一下（psync Master_id repl_off）</p>
+<p>Master：刚哪浪去了？问你又不答我。行了，增量同步一下吧，等着</p>
+<p>Slave：好的，师父。</p>
+<p>（Slave等啊等）</p>
+<p>Master：接着，这些都是你刚没有执行的命令</p>
+<p>Slave：收！</p>
+<p>（Slave增量同步完后，上线工作了，命令传播）</p>
+<p>Master：这是我刚执行完的命令，你执行一下</p>
+<p>Slave：好的（执行完了也不告诉你）</p>
+<p>Master：这是我刚执行完的命令，你执行一下</p>
+<p>Slave：好的（执行完了也不告诉你）</p>
+<p>……</p>
+<blockquote>
+<p>主从网络断开重连后，slave落后太多</p>
+</blockquote>
+<p>Slave：师父，刚掉线了，我是不是错过了什么，我要增量同步一下（psync Master_id repl_off）</p>
+<p>Master：刚哪浪去了？问你又不答我。不行不行，你落后了（repl_off进度太旧了），你先全量一下我们在聊吧</p>
+<p>Slave：好的，师父。全量同步（Sync）</p>
+<p>Master：同意。等着吧。</p>
+<p>（Slave等啊等）</p>
+<p>Master：接着，rdb</p>
+<p>Slave：收！</p>
+<p>（Slave全量同步完后，上线工作了，命令传播）</p>
+<p>Master：这是我刚执行完的命令，你执行一下</p>
+<p>Slave：好的（执行完了也不告诉你）</p>
+<p>Master：这是我刚执行完的命令，你执行一下</p>
+<p>Slave：好的（执行完了也不告诉你）</p>
+<p>……</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Redis/" rel="tag"># Redis</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/07/08/PHP源码阅读strtr/" rel="next" title="PHP源码阅读strtr">
+                <i class="fa fa-chevron-left"></i> PHP源码阅读strtr
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/avatar.gif"
+               alt="JCHuang" />
+          <p class="site-author-name" itemprop="name">JCHuang</p>
+           
+              <p class="site-description motion-element" itemprop="description"></p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">7</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              
+                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-name">标签</span>
+              
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Redis主从复制"><span class="nav-number">1.</span> <span class="nav-text">Redis主从复制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Slave-Server"><span class="nav-number">2.</span> <span class="nav-text">Slave Server</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#全量同步"><span class="nav-number">3.</span> <span class="nav-text">全量同步</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#增量同步"><span class="nav-number">4.</span> <span class="nav-text">增量同步</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#命令传播"><span class="nav-number">5.</span> <span class="nav-text">命令传播</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#心跳检测"><span class="nav-number">6.</span> <span class="nav-text">心跳检测</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#风险"><span class="nav-number">7.</span> <span class="nav-text">风险</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#废话"><span class="nav-number">8.</span> <span class="nav-text">废话</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">JCHuang</span>
+</div>
+
+
+<div class="powered-by">
+  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Muse
+  </a>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
