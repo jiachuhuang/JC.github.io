@@ -101,7 +101,7 @@
 <meta property="og:site_name" content="JC博客">
 <meta property="og:description" content="Redis主从复制为了提高性能和系统可用，Redis都会做主从复制，一来可以分担主库压力，二来在主库挂掉的时候从库依旧可以提供服务。Redis的主从复制是异步复制，返回结果给客户端和同步命令到从库是两回事，互不相干，主库也不关心从库的执行结果，对于同步命令执行的结果，从库会直接丢弃并不返回给主库。Redis的主从复制简单高效，但也不太算可靠。  Redis的主从复制是异步复制；全量同步（或增量同步">
 <meta property="og:image" content="http://yoursite.com/2017/07/17/Redis主从复制——Slave视角/sync_1.png">
-<meta property="og:updated_time" content="2017-07-18T13:01:06.000Z">
+<meta property="og:updated_time" content="2017-07-18T13:02:59.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Redis主从复制——Slave视角">
 <meta name="twitter:description" content="Redis主从复制为了提高性能和系统可用，Redis都会做主从复制，一来可以分担主库压力，二来在主库挂掉的时候从库依旧可以提供服务。Redis的主从复制是异步复制，返回结果给客户端和同步命令到从库是两回事，互不相干，主库也不关心从库的执行结果，对于同步命令执行的结果，从库会直接丢弃并不返回给主库。Redis的主从复制简单高效，但也不太算可靠。  Redis的主从复制是异步复制；全量同步（或增量同步">
@@ -348,7 +348,7 @@
 <p>以上代码有点长，总结一下步骤：1）slave发送自身信息到master；2）尝试增量同步，成功则等待master回送同步数据；3）不支持增量同步或者增量同步失败，则进行全量同步，并等待master回送同步数据。</p>
 </blockquote>
 <h2 id="全量同步"><a href="#全量同步" class="headerlink" title="全量同步"></a>全量同步</h2><p>1、从库发送sync命令给主库（2.8以上Redis直接使用psync命令）发起全量同步，并等待数据返回</p>
-<p>2、主库接收到sync命令（或者尝试增量同步失败后），把内存数据保存到rdb文件并把文件内容发送给从库</p>
+<p>2、主库接收到命令（或者尝试增量同步失败后），把内存数据保存到rdb文件并把文件内容发送给从库</p>
 <p>3、从库接收同步数据并保存到本地rdb文件，最后把rdb文件内容写入到内存数据库，至此全量同步完成</p>
 <blockquote>
 <p>以上是简述一下同步流程，但其中并不止那么简单，例如：同时多个slave发起全量同步请求，主库也只会进行一次bgsave，保存内存快照到rdb文件。</p>
