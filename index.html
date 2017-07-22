@@ -266,6 +266,127 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/21/Redis源码——内存淘汰机制/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="JCHuang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="JC博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/07/21/Redis源码——内存淘汰机制/" itemprop="url">Redis源码——内存淘汰机制</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-21T15:45:54+08:00">
+                2017-07-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="Redis缓存淘汰策略"><a href="#Redis缓存淘汰策略" class="headerlink" title="Redis缓存淘汰策略"></a>Redis缓存淘汰策略</h2><p>noeviction：内存达到了上限，不淘汰内存数据，遇到大部分写命令返回Out Of Memory错误。</p>
+<p>allkeys-lru：在所有的key的哈希表中随机选择多个key，在选择到的key中使用lru算法淘汰最近最少使用的缓存。</p>
+<p>volatile-lru：在设置了过期时间的哈希表里面随机选择多个key，在选择到的key中使用lru算法淘汰最近最少使用的缓存。</p>
+<p>allkeys-random：在所有的key的哈希表中随机选择一个key淘汰掉。</p>
+<p>volatile-random：在设置了过期时间的哈希表里面随机选择一个key淘汰掉。</p>
+<p>volatile-ttl：在设置了过期时间的哈希表里面随机选择多个key，在挑选到的key中选择过期时间最小的一个淘汰掉。</p>
+<h2 id="LRU算法"><a href="#LRU算法" class="headerlink" title="LRU算法"></a>LRU算法</h2><p>lru算法原理，根据数据的访问时间，选择淘汰最长时间未被使用的数据。可以使用链表来实现，新增数据（访问数据），把这数据插入（移动）到链表头部，淘汰数据就选择链表末尾的数据淘汰掉。</p>
+<h2 id="Redis采样淘汰"><a href="#Redis采样淘汰" class="headerlink" title="Redis采样淘汰"></a>Redis采样淘汰</h2><p>Redis实现的lru淘汰算法，选择被淘汰的key不一定是所有key中最近最少使用的，只是选取的样本中访问时间距离当前时间最远的。Redis有个maxmemory-samples配置项，当Redis内存使用达到上限后，从对应哈希表中挑选设置样本数量的key，插入或者替换到样本集中，最后对样本集使用lru算法，淘汰最长时间未被使用的数据。</p>
+<p>Redis在随机采样集中应用lru淘汰数据，而不是类似memcached那样严格地挑选所有key中最近最少访问的数据。第一是考虑到Redis内部db的实现方式，Redis是使用hash表结构实现key的存储，要实现严格的lru，那么Redis就要额外的实现一个访问时间链表，增加内存开销（Redis对内存使用还是很抠门的，很多地方都牺牲时间来换取更少的空间开销），这说法是来自官网的，并且每次读写操作都需要维护更新访问时间链表；第二考虑操作的时间开销，实现严格的lru算法，那样淘汰数据的时候都需要扫描整个哈希表（前提是基于当前的数据结构来说），扫描所有key，这样付出的时间开销不言而喻。</p>
+<h2 id="Redis缓存淘汰源码分析"><a href="#Redis缓存淘汰源码分析" class="headerlink" title="Redis缓存淘汰源码分析"></a>Redis缓存淘汰源码分析</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">freeMemoryIfNeeded</span><span class="params">(<span class="keyword">void</span>)</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * noeviction 不淘汰数据，什么都不做</div><div class="line">     */</div><div class="line">    <span class="keyword">if</span> (server.maxmemory_policy == MAXMEMORY_NO_EVICTION)</div><div class="line">        <span class="keyword">return</span> C_ERR;</div><div class="line"></div><div class="line">    <span class="keyword">while</span> (mem_freed &lt; mem_tofree) &#123;</div><div class="line">        <span class="keyword">int</span> j, k, keys_freed = <span class="number">0</span>;</div><div class="line"></div><div class="line">        <span class="keyword">for</span> (j = <span class="number">0</span>; j &lt; server.dbnum; j++) &#123;</div><div class="line">            <span class="comment">/**</span></div><div class="line">             * 选择操作的哈希表，Redis另外维护着一个保存过期时间的key=&gt;expire关联的哈希表</div><div class="line">             */</div><div class="line">            <span class="keyword">if</span> (server.maxmemory_policy == MAXMEMORY_ALLKEYS_LRU ||</div><div class="line">                server.maxmemory_policy == MAXMEMORY_ALLKEYS_RANDOM)</div><div class="line">            &#123;</div><div class="line">                dict = server.db[j].dict;</div><div class="line">            &#125; <span class="keyword">else</span> &#123;</div><div class="line">                dict = server.db[j].expires;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            <span class="comment">/**</span></div><div class="line">             * 分支一：全局哈希表随机或者过期时间哈希表中，随机淘汰一个key</div><div class="line">             */</div><div class="line">            <span class="keyword">if</span> (server.maxmemory_policy == MAXMEMORY_ALLKEYS_RANDOM ||</div><div class="line">                server.maxmemory_policy == MAXMEMORY_VOLATILE_RANDOM)</div><div class="line">            &#123;</div><div class="line">                de = dictGetRandomKey(dict);</div><div class="line">                bestkey = dictGetKey(de);</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            <span class="comment">/**</span></div><div class="line">             * 分支二：全局哈希表随机或者过期时间哈希表中，随机采样多个数据，再运用lru算法挑选一个淘汰</div><div class="line">             */</div><div class="line">            <span class="keyword">else</span> <span class="keyword">if</span> (server.maxmemory_policy == MAXMEMORY_ALLKEYS_LRU ||</div><div class="line">                server.maxmemory_policy == MAXMEMORY_VOLATILE_LRU)</div><div class="line">            &#123;</div><div class="line">                <span class="comment">/* 样本集 */</span></div><div class="line">                struct evictionPoolEntry *pool = db-&gt;eviction_pool;</div><div class="line"></div><div class="line">                <span class="keyword">while</span>(bestkey == <span class="literal">NULL</span>) &#123;</div><div class="line">                    <span class="comment">/* </span></div><div class="line">                     * 采样，更新和维护样本集；</div><div class="line">                     * 样本集开始是空的，每次操作完并不会清空样本集；</div><div class="line">                     * 而且每次采样，都会采集多个数据，同时和样本集中已有的数据进行比较，新增或者更新样本集；</div><div class="line">                     */ </div><div class="line">                    evictionPoolPopulate(dict, db-&gt;dict, db-&gt;eviction_pool);</div><div class="line">                    <span class="comment">/**</span></div><div class="line">                     * 开始对样本集使用lru算法，淘汰样本集中访问时间最晚的key</div><div class="line">                     */</div><div class="line">                    <span class="keyword">for</span> (k = MAXMEMORY_EVICTION_POOL_SIZE<span class="number">-1</span>; k &gt;= <span class="number">0</span>; k--) &#123;</div><div class="line">                        <span class="keyword">if</span> (pool[k].key == <span class="literal">NULL</span>) <span class="keyword">continue</span>;</div><div class="line">                        de = dictFind(dict,pool[k].key);</div><div class="line"></div><div class="line">                        <span class="comment">/* 把选取到的key从样本集中移除 */</span></div><div class="line">                        sdsfree(pool[k].key);</div><div class="line">                        memmove(pool+k,pool+k+<span class="number">1</span>,</div><div class="line">                            <span class="keyword">sizeof</span>(pool[<span class="number">0</span>])*(MAXMEMORY_EVICTION_POOL_SIZE-k<span class="number">-1</span>));</div><div class="line">                        pool[MAXMEMORY_EVICTION_POOL_SIZE<span class="number">-1</span>].key = <span class="literal">NULL</span>;</div><div class="line">                        pool[MAXMEMORY_EVICTION_POOL_SIZE<span class="number">-1</span>].idle = <span class="number">0</span>;</div><div class="line"></div><div class="line">                        <span class="comment">/* pool样本集内的key，只是样本，不一定和db内保持一致，也不必，可能在db中已经被删除的，所以要作判断 */</span></div><div class="line">                        <span class="keyword">if</span> (de) &#123;</div><div class="line">                            bestkey = dictGetKey(de);</div><div class="line">                            <span class="keyword">break</span>;</div><div class="line">                        &#125; <span class="keyword">else</span> &#123;</div><div class="line">                            <span class="comment">/* Ghost... */</span></div><div class="line">                            <span class="keyword">continue</span>;</div><div class="line">                        &#125;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            <span class="comment">/**</span></div><div class="line">             * 分支三：在设置了过期时间的哈希表里面随机选择多个key，在挑选到的key中选择过期时间最小的一个淘汰掉</div><div class="line">             */</div><div class="line">            <span class="keyword">else</span> <span class="keyword">if</span> (server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL) &#123;</div><div class="line">                <span class="keyword">for</span> (k = <span class="number">0</span>; k &lt; server.maxmemory_samples; k++) &#123;</div><div class="line">                    sds thiskey;</div><div class="line">                    <span class="keyword">long</span> thisval;</div><div class="line"></div><div class="line">                    de = dictGetRandomKey(dict);</div><div class="line">                    thiskey = dictGetKey(de);</div><div class="line">                    thisval = (<span class="keyword">long</span>) dictGetVal(de);</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> (bestkey == <span class="literal">NULL</span> || thisval &lt; bestval) &#123;</div><div class="line">                        bestkey = thiskey;</div><div class="line">                        bestval = thisval;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line"></div><div class="line">            <span class="keyword">if</span> (bestkey) &#123;</div><div class="line">                <span class="keyword">long</span> <span class="keyword">long</span> delta;</div><div class="line"></div><div class="line">                robj *keyobj = createStringObject(bestkey,sdslen(bestkey));</div><div class="line"></div><div class="line">                <span class="comment">// 命令扩散，把删除key的命令同步到所有从库slave</span></div><div class="line">                propagateExpire(db,keyobj);</div><div class="line"></div><div class="line">                <span class="comment">// 删除key</span></div><div class="line">                dbDelete(db,keyobj);</div><div class="line"></div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">return</span> C_OK;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/17/Redis主从复制——Slave视角/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1305,7 +1426,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">7</span>
+                <span class="site-state-item-count">8</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
