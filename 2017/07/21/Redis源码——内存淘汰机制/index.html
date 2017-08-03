@@ -77,7 +77,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="Redis," />
 
 
 
@@ -94,12 +94,13 @@
 
 
 <meta name="description" content="Redis缓存淘汰策略noeviction：内存达到了上限，不淘汰内存数据，遇到大部分写命令返回Out Of Memory错误。 allkeys-lru：在所有的key的哈希表中随机选择多个key，在选择到的key中使用lru算法淘汰最近最少使用的缓存。 volatile-lru：在设置了过期时间的哈希表里面随机选择多个key，在选择到的key中使用lru算法淘汰最近最少使用的缓存。 allkey">
+<meta name="keywords" content="Redis">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Redis源码——内存淘汰机制">
 <meta property="og:url" content="http://yoursite.com/2017/07/21/Redis源码——内存淘汰机制/index.html">
 <meta property="og:site_name" content="JC博客">
 <meta property="og:description" content="Redis缓存淘汰策略noeviction：内存达到了上限，不淘汰内存数据，遇到大部分写命令返回Out Of Memory错误。 allkeys-lru：在所有的key的哈希表中随机选择多个key，在选择到的key中使用lru算法淘汰最近最少使用的缓存。 volatile-lru：在设置了过期时间的哈希表里面随机选择多个key，在选择到的key中使用lru算法淘汰最近最少使用的缓存。 allkey">
-<meta property="og:updated_time" content="2017-07-22T08:55:54.000Z">
+<meta property="og:updated_time" content="2017-07-31T08:38:11.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Redis源码——内存淘汰机制">
 <meta name="twitter:description" content="Redis缓存淘汰策略noeviction：内存达到了上限，不淘汰内存数据，遇到大部分写命令返回Out Of Memory错误。 allkeys-lru：在所有的key的哈希表中随机选择多个key，在选择到的key中使用lru算法淘汰最近最少使用的缓存。 volatile-lru：在设置了过期时间的哈希表里面随机选择多个key，在选择到的key中使用lru算法淘汰最近最少使用的缓存。 allkey">
@@ -366,6 +367,12 @@
 
     <footer class="post-footer">
       
+        <div class="post-tags">
+          
+            <a href="/tags/Redis/" rel="tag"># Redis</a>
+          
+        </div>
+      
 
       
       
@@ -384,6 +391,10 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/07/31/Redis-AOF/" rel="prev" title="Redis AOF">
+                Redis AOF <i class="fa fa-chevron-right"></i>
+              </a>
             
           </div>
         </div>
@@ -455,7 +466,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">8</span>
+                <span class="site-state-item-count">9</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
@@ -468,7 +479,7 @@
             
             <div class="site-state-item site-state-tags">
               
-                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-count">5</span>
                 <span class="site-state-item-name">标签</span>
               
             </div>
