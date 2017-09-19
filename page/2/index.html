@@ -77,7 +77,7 @@
 <link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
 
 
-  <meta name="keywords" content="PHP," />
+  <meta name="keywords" content="Hexo, NexT" />
 
 
 
@@ -93,17 +93,15 @@
 
 
 
-<meta name="description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度最差是O(n)，平均O(n/2) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。1234567891011121314ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(ar">
-<meta name="keywords" content="PHP">
-<meta property="og:type" content="article">
-<meta property="og:title" content="PHP源码阅读in_array">
-<meta property="og:url" content="http://yoursite.com/2017/07/06/PHP源码阅读in-array/index.html">
+<meta name="description" content="街边太多人与车繁华闹市人醉夜害怕下班等很久怀念很久也不够">
+<meta property="og:type" content="website">
+<meta property="og:title" content="JC博客">
+<meta property="og:url" content="http://yoursite.com/page/2/index.html">
 <meta property="og:site_name" content="JC博客">
-<meta property="og:description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度最差是O(n)，平均O(n/2) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。1234567891011121314ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(ar">
-<meta property="og:updated_time" content="2017-07-19T02:10:03.000Z">
+<meta property="og:description" content="街边太多人与车繁华闹市人醉夜害怕下班等很久怀念很久也不够">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="PHP源码阅读in_array">
-<meta name="twitter:description" content="in_array函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。 时间复杂度最差是O(n)，平均O(n/2) 源码只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。1234567891011121314ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(ar">
+<meta name="twitter:title" content="JC博客">
+<meta name="twitter:description" content="街边太多人与车繁华闹市人醉夜害怕下班等很久怀念很久也不够">
 
 
 
@@ -131,13 +129,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2017/07/06/PHP源码阅读in-array/"/>
+  <link rel="canonical" href="http://yoursite.com/page/2/"/>
 
 
 
 
 
-  <title>PHP源码阅读in_array | JC博客</title>
+  <title>JC博客</title>
   
 
 
@@ -172,7 +170,9 @@
     
   
 
-  <div class="container sidebar-position-right page-post-detail ">
+  <div class="container sidebar-position-right 
+   page-home 
+ ">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -255,9 +255,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-
-  <div id="posts" class="posts-expand">
+  <section id="posts" class="posts-expand">
     
+      
 
   
 
@@ -283,7 +283,9 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">PHP源码阅读in_array</h1>
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/07/06/PHP源码阅读in-array/" itemprop="url">PHP源码阅读in_array</a></h1>
         
 
         <div class="post-meta">
@@ -330,7 +332,9 @@
       
 
       
-        <h2 id="in-array"><a href="#in-array" class="headerlink" title="in_array"></a>in_array</h2><p>函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。</p>
+        
+          
+            <h2 id="in-array"><a href="#in-array" class="headerlink" title="in_array"></a>in_array</h2><p>函数搜索数组中是否存在指定的值。存在，返回true；否，返回false。</p>
 <h2 id="时间复杂度"><a href="#时间复杂度" class="headerlink" title="时间复杂度"></a>时间复杂度</h2><p>最差是O(n)，平均O(n/2)</p>
 <h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>只拿一个分支出来看，其他的差不多，从源码中的ZEND_HASH_FOREACH_KEY_VAL，可以看出实现方式，是遍历数组，搜索是否存在这个值。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(<span class="keyword">array</span>), num_idx, str_idx, entry) &#123;</div><div class="line">	<span class="keyword">if</span> (fast_equal_check_long(value, entry)) &#123;</div><div class="line">		<span class="keyword">if</span> (behavior == <span class="number">0</span>) &#123;</div><div class="line">			RETURN_TRUE;</div><div class="line">		&#125; <span class="keyword">else</span> &#123;</div><div class="line">			<span class="keyword">if</span> (str_idx) &#123;</div><div class="line">				RETVAL_STR_COPY(str_idx);</div><div class="line">			&#125; <span class="keyword">else</span> &#123;</div><div class="line">				RETVAL_LONG(num_idx);</div><div class="line">			&#125;</div><div class="line">			<span class="keyword">return</span>;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">&#125; ZEND_HASH_FOREACH_END();</div></pre></td></tr></table></figure></p>
 <h2 id="优化"><a href="#优化" class="headerlink" title="优化"></a>优化</h2><p>网上有人给出两种优化方法。第一种，使用 array_flip key-value翻转，通过isset（或者array_key_exists）判断是否存在；第二种，通过implode把数组合并成一个字符串，再通过strpos搜索。对于这两种优化，我是持有怀疑态度的。下面一一来试验一番。</p>
@@ -341,72 +345,46 @@
 <p>第二种，strpos php底层的实现是KMP算法，时间复杂度是O(n+m)，而且还有implode的操作，最后还会生成一个字符串，也需要付出额外的内存空间。</p>
 <p>那么，是否in_array就已经没法优化了呢，其实也不然，这个的优化不能撇开使用场景。如果是需要频繁搜索的，可以一开始就构建一个集合，例如：array(search =&gt; true)，这样可以直接用isset；如果是需要一个有序数组，那么一开始就构建成有序数组，array(0,1,2,3)，搜索可以用上搜索算法，快排等。</p>
 
+          
+        
       
     </div>
 
     <div>
       
-        
-
-      
     </div>
 
     <div>
       
-        
-
-      
     </div>
 
     <div>
-      
-        
-
       
     </div>
 
     <footer class="post-footer">
       
-        <div class="post-tags">
-          
-            <a href="/tags/PHP/" rel="tag"># PHP</a>
-          
-        </div>
+
+      
+
       
 
       
       
-      
-
-      
-        <div class="post-nav">
-          <div class="post-nav-next post-nav-item">
-            
-          </div>
-
-          <span class="post-nav-divider"></span>
-
-          <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/07/06/说说Redis的setnx/" rel="prev" title="说说Redis的setnx">
-                说说Redis的setnx <i class="fa fa-chevron-right"></i>
-              </a>
-            
-          </div>
-        </div>
-      
-
-      
+        <div class="post-eof"></div>
       
     </footer>
   </article>
 
 
+    
+  </section>
 
-    <div class="post-spread">
-      
-    </div>
-  </div>
+  
+  <nav class="pagination">
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span>
+  </nav>
+
 
 
           </div>
@@ -414,10 +392,6 @@
 
 
           
-  <div class="comments" id="comments">
-    
-  </div>
-
 
         </div>
         
@@ -437,17 +411,8 @@
       
 
       
-        <ul class="sidebar-nav motion-element">
-          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
-            文章目录
-          </li>
-          <li class="sidebar-nav-overview" data-target="site-overview">
-            站点概览
-          </li>
-        </ul>
-      
 
-      <section class="site-overview sidebar-panel">
+      <section class="site-overview sidebar-panel sidebar-panel-active">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
           <img class="site-author-image" itemprop="image"
                src="/images/avatar.gif"
@@ -500,22 +465,6 @@
 
       </section>
 
-      
-      <!--noindex-->
-        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
-          <div class="post-toc">
-
-            
-              
-            
-
-            
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#in-array"><span class="nav-number">1.</span> <span class="nav-text">in_array</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#时间复杂度"><span class="nav-number">2.</span> <span class="nav-text">时间复杂度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#源码"><span class="nav-number">3.</span> <span class="nav-text">源码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#优化"><span class="nav-number">4.</span> <span class="nav-text">优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#优化总结"><span class="nav-number">4.0.1.</span> <span class="nav-text">优化总结</span></a></li></ol></li></ol></li></ol></div>
-            
-
-          </div>
-        </section>
-      <!--/noindex-->
       
 
       
@@ -618,10 +567,10 @@
   
 
   
-  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+    <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
 <script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
 
-
+  
 
   
 

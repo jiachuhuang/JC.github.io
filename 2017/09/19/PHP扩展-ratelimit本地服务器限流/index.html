@@ -93,16 +93,16 @@
 
 
 
-<meta name="description" content="在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。 代码检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接">
+<meta name="description" content="应用限流本文讲的应用限流，是限制单位时间PHP应用服务器总访问量，不针对接口，不针对个人用户。原做法，是通过Redis记录访问总量，通过过期时间淘汰（单位时间访问量清零）。做法简单，效果也不错，但缺点也明显，一次访问量判断和设置，就至少要一次网络开销（Redis Incr）。优化的思路是，可否省掉这一次Redis操作（直接去掉不限流了hahahaha）。限制总访问量，分摊到每台应用机上，不就是它们">
 <meta property="og:type" content="article">
-<meta property="og:title" content="从抽奖活动总结系统优化">
-<meta property="og:url" content="http://yoursite.com/2017/07/07/从抽奖活动总结系统优化/index.html">
+<meta property="og:title" content="PHP扩展--ratelimit本地服务器限流">
+<meta property="og:url" content="http://yoursite.com/2017/09/19/PHP扩展-ratelimit本地服务器限流/index.html">
 <meta property="og:site_name" content="JC博客">
-<meta property="og:description" content="在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。 代码检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接">
-<meta property="og:updated_time" content="2017-07-07T16:47:20.000Z">
+<meta property="og:description" content="应用限流本文讲的应用限流，是限制单位时间PHP应用服务器总访问量，不针对接口，不针对个人用户。原做法，是通过Redis记录访问总量，通过过期时间淘汰（单位时间访问量清零）。做法简单，效果也不错，但缺点也明显，一次访问量判断和设置，就至少要一次网络开销（Redis Incr）。优化的思路是，可否省掉这一次Redis操作（直接去掉不限流了hahahaha）。限制总访问量，分摊到每台应用机上，不就是它们">
+<meta property="og:updated_time" content="2017-09-19T14:16:12.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="从抽奖活动总结系统优化">
-<meta name="twitter:description" content="在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。 代码检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接">
+<meta name="twitter:title" content="PHP扩展--ratelimit本地服务器限流">
+<meta name="twitter:description" content="应用限流本文讲的应用限流，是限制单位时间PHP应用服务器总访问量，不针对接口，不针对个人用户。原做法，是通过Redis记录访问总量，通过过期时间淘汰（单位时间访问量清零）。做法简单，效果也不错，但缺点也明显，一次访问量判断和设置，就至少要一次网络开销（Redis Incr）。优化的思路是，可否省掉这一次Redis操作（直接去掉不限流了hahahaha）。限制总访问量，分摊到每台应用机上，不就是它们">
 
 
 
@@ -130,13 +130,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2017/07/07/从抽奖活动总结系统优化/"/>
+  <link rel="canonical" href="http://yoursite.com/2017/09/19/PHP扩展-ratelimit本地服务器限流/"/>
 
 
 
 
 
-  <title>从抽奖活动总结系统优化 | JC博客</title>
+  <title>PHP扩展--ratelimit本地服务器限流 | JC博客</title>
   
 
 
@@ -265,7 +265,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/07/从抽奖活动总结系统优化/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/19/PHP扩展-ratelimit本地服务器限流/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="JCHuang">
@@ -282,7 +282,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">从抽奖活动总结系统优化</h1>
+          <h1 class="post-title" itemprop="name headline">PHP扩展--ratelimit本地服务器限流</h1>
         
 
         <div class="post-meta">
@@ -294,8 +294,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-07T21:04:37+08:00">
-                2017-07-07
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-19T20:06:49+08:00">
+                2017-09-19
               </time>
             
 
@@ -329,17 +329,14 @@
       
 
       
-        <p>在魅族工作的时间，主要是从事抽奖活动、投票活动等网络营销活动，尤其是抽奖活动，魅族营销的成本投入还是大的，所以每次活动，参与用户都很热情，刚开始那会每次活动上线都会战战兢兢，现在是老油条了，不是说不怕，只是有经验了。应对并发的三板斧，限流、缓存、异步，下面就简单说说自己一些经验吧。</p>
-<h2 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h2><p>检查代码有没有写出多层foreach嵌套，考虑是否有改进的空间；使用锁的地方考虑有没有死锁的可能性；请求第三方接口是否会漏掉超时限制，这点很容易被忽略，对接第三方的接口需要多点留意。</p>
-<h2 id="限流"><a href="#限流" class="headerlink" title="限流"></a>限流</h2><p>大考前的检查，压测，通过压测的数据指导，调整nginx最大链接数，系统能力有限，超过最大链接数的直接拒绝请求。<br>限制僵尸用户，我们系统是微信授权的，使用微信的用户验证接口，可以挡掉一部分僵尸用户，联合自身的用户系统，排除刷奖用户的请求，这部分可以减少大部分流量。<br>应用层限制请求频率，限制单个用户一分钟内请求次数，使用redis的hash表存储用户一分钟内的请求次数，一个用户一条记录。</p>
-<h2 id="缓存"><a href="#缓存" class="headerlink" title="缓存"></a>缓存</h2><p>应用场景<br>对于数据量小、更新不频繁的，例如活动信息等，可以考虑用本地缓存，同时也使用redis做二级缓存，提高命中，提高缓存效率；数据量大、更新频繁、增长快的缓存数据使用redis等专用缓存服务。例如：随机获取愿望墙记录列表，通过数据库去随机获取那简直是噩梦，可以用redis的集合保存所有记录id，通过SRANDMEMBER从集合中返回随机id集，再通过id集从redis的hash表中获取每条记录的详细信息。</p>
-<p>缓存更新<br>主动更新缓存，数据库数据更新后，往消息队列插入记录，后台消费程序主动更新缓存；同时添加缓存过期时间，自动淘汰缓存，双保险。</p>
-<p>缓存击穿<br>缓存丢失的瞬间，并发请求下，会瞬间有多个请求到达数据库，查询同一份数据，数据库压力瞬间暴涨，解决方法，可以在请求数据库前上锁（<a href="https://jiachuhuang.github.io/2017/07/06/%E8%AF%B4%E8%AF%B4Redis%E7%9A%84setnx/" target="_blank" rel="external">使用redis setnx实现锁</a>），只允许获得锁更新缓存，没得到锁的等待缓存更新后，直接从缓存获得数据。</p>
-<h2 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h2><p>慢查询优化<br>我们系统平时都会进行压测，根据压测结果和慢查询日志进行sql优化，这点展开说太多了。</p>
-<p>分库<br>我们有时候会同时上几个活动，一般都把不同的活动分摊到不同的数据库上，相当于把流量分摊到不同数据库上。</p>
-<p>主从同步<br>我们配有主从库，主写从读，在主从同步间隙，会遇到从库未同步完成，客户端读不到最新数据，可以在写入主库成功后，往redis插入一条记录，设置过期时间（一般为主从同步需要的时间），读取前，先读取redis，如果记录存在，就从主库返回数据。</p>
-<p>乐观锁<br>抽奖活动扣除奖品数量，在并发下，如果不加保护，很容易超库，一般都使用事务进行扣除，但事务会影响数据性能，我们做法是使用版本号，更新库存的时候，只有版本号对上才能更新成功。</p>
-<h2 id="消息队列"><a href="#消息队列" class="headerlink" title="消息队列"></a>消息队列</h2><p>对于抽奖活动，前端有转盘等过场动画的，可以使用异步的方式，达到削峰填谷的效果；投票这些不需要实时反馈结果的，也可以使用消息队列进行异步处理，消费程序在后台批量处理。使用消息队列需要保证消息不丢失，和防止重复消费消息。</p>
+        <h2 id="应用限流"><a href="#应用限流" class="headerlink" title="应用限流"></a>应用限流</h2><p>本文讲的应用限流，是限制单位时间PHP应用服务器总访问量，不针对接口，不针对个人用户。原做法，是通过Redis记录访问总量，通过过期时间淘汰（单位时间访问量清零）。做法简单，效果也不错，但缺点也明显，一次访问量判断和设置，就至少要一次网络开销（Redis Incr）。优化的思路是，可否省掉这一次Redis操作（直接去掉不限流了hahahaha）。限制总访问量，分摊到每台应用机上，不就是它们自己的指标了吗。对，那就应用服务器本地记录状态，本地判断。那本地怎么记录状态？多着，本地文件、APC缓存。但要考虑性能问题，本地文件就…当我没说过。APC不错，实现起来会复杂点，要考虑修改记录的冲突问题。</p>
+<h2 id="Redis-版本"><a href="#Redis-版本" class="headerlink" title="Redis 版本"></a>Redis 版本</h2><p>下面给个Redis的简版，官方思路，但有bug<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">$old_count = $redis-&gt;incr($key);</div><div class="line"></div><div class="line"><span class="keyword">if</span>($old_count == <span class="number">1</span>) &#123;</div><div class="line">    expire($key, <span class="number">1</span>); <span class="comment">// bug.Why?如果在expire前，退出了，那么这个$key就不会过期了，至少短期内过期不了，后续达到了limit上限，服务就无法使用了。</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">if</span>($old_count &gt; $limit) &#123;</div><div class="line">    <span class="keyword">echo</span> <span class="string">"1秒内太多人访问了"</span>;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125; <span class="keyword">else</span> &#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<blockquote>
+<p>Redis的版本可以<a href="https://jiachuhuang.github.io/2017/07/06/%E8%AF%B4%E8%AF%B4Redis%E7%9A%84setnx/" target="_blank" rel="external">setnx锁</a>来实现会更稳</p>
+</blockquote>
+<h2 id="我的限流PHP扩展"><a href="#我的限流PHP扩展" class="headerlink" title="我的限流PHP扩展"></a>我的限流PHP扩展</h2><p>开头说，使用APC来实现Redis上的这个功能是可以的，只是要多的事会多点，不说了，说说APC缓存的原理吧，APC使用内存共享的来实现进程间通信，咋说，php-fpm是多进程模型，同一进程可以处理多次（不是同时处理）php请求，换句话说，php-fpm的worker进程是常驻内存的，那么，php-fpm woker进程就可以通过内存共享来达到缓存数据的功能。</p>
+<p>那么利用内存共享不就可以在多个进程间共享本地服务器的访问量了，就可以保存访问记录了。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">$solt = 0;  // 使用那个solt比对</div><div class="line">$limit = 100; // 每秒访问量上限</div><div class="line">$rl = new M_ratelimit($solt, $limit);</div><div class="line">if($rl-&gt;acquire()) &#123;</div><div class="line">    echo &quot;允许访问&quot;;</div><div class="line">    return true;</div><div class="line">&#125; else &#123;</div><div class="line">    echo &quot;超过了&#123;$limit&#125;上限了&quot;;</div><div class="line">    return false;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p><a href="https://github.com/jiachuhuang/mutils" target="_blank" rel="external">扩展源码</a></p>
 
       
     </div>
@@ -376,8 +373,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/07/06/PHP-FPM进程模型/" rel="next" title="PHP-FPM进程模型">
-                <i class="fa fa-chevron-left"></i> PHP-FPM进程模型
+              <a href="/2017/08/08/PHP并发查询MySQL/" rel="next" title="PHP并发查询MySQL">
+                <i class="fa fa-chevron-left"></i> PHP并发查询MySQL
               </a>
             
           </div>
@@ -385,10 +382,6 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/07/08/PHP源码阅读strtr/" rel="prev" title="PHP源码阅读strtr">
-                PHP源码阅读strtr <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -508,7 +501,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#代码"><span class="nav-number">1.</span> <span class="nav-text">代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#限流"><span class="nav-number">2.</span> <span class="nav-text">限流</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#缓存"><span class="nav-number">3.</span> <span class="nav-text">缓存</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#数据库"><span class="nav-number">4.</span> <span class="nav-text">数据库</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#消息队列"><span class="nav-number">5.</span> <span class="nav-text">消息队列</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#应用限流"><span class="nav-number">1.</span> <span class="nav-text">应用限流</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redis-版本"><span class="nav-number">2.</span> <span class="nav-text">Redis 版本</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#我的限流PHP扩展"><span class="nav-number">3.</span> <span class="nav-text">我的限流PHP扩展</span></a></li></ol></div>
             
 
           </div>
