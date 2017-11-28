@@ -266,6 +266,133 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/06/说说Redis的setnx/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="JCHuang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="JC博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/07/06/说说Redis的setnx/" itemprop="url">说说Redis的setnx</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-06T12:35:33+08:00">
+                2017-07-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="setnx"><a href="#setnx" class="headerlink" title="setnx"></a>setnx</h2><p>Redis的setnx指令，设置一个键值对，当且仅当键不存在的时候，才能设置成功。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">get test_setnx</div><div class="line">$<span class="number">-1</span></div><div class="line">setnx test_setnx <span class="number">10</span></div><div class="line">:<span class="number">1</span></div><div class="line">get test_setnx</div><div class="line">$<span class="number">2</span></div><div class="line"><span class="number">10</span></div><div class="line">setnx test_setnx <span class="number">99</span></div><div class="line">:<span class="number">0</span></div></pre></td></tr></table></figure></p>
+<h2 id="用法"><a href="#用法" class="headerlink" title="用法"></a>用法</h2><p>一般会使用setnx来实现锁的功能，解决资源竞争、缓存风暴等问题。例如，在缓存风暴中，没有锁保护的情况下，缓存失效，会导致短时间内，多个请求透过缓存到达数据库，请求同一份数据，修改同一份缓存；如果使用了锁，可以让获得锁的请求到达数据库，请求数据后回写缓存，后续没有得到锁的就直接读取新的缓存数据，而不用请求数据库了。</p>
+<h2 id="锁的实现"><a href="#锁的实现" class="headerlink" title="锁的实现"></a>锁的实现</h2><p>下面我一个一个坑地踩，一个一个坑地填，最终呈现完整的实现。</p>
+<h4 id="版本1"><a href="#版本1" class="headerlink" title="版本1"></a>版本1</h4><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 上锁</span></div><div class="line"><span class="keyword">if</span>($redis-&gt;setnx(<span class="string">'lock_key'</span>, <span class="number">1</span>))&#123;</div><div class="line">	<span class="keyword">echo</span> <span class="string">'成功'</span>.PHP_EOL;</div><div class="line">	<span class="comment">// 释放锁</span></div><div class="line">	$redis-&gt;delete(<span class="string">'lock_key'</span>);</div><div class="line">&#125;<span class="keyword">else</span>&#123;</div><div class="line">	<span class="keyword">echo</span> <span class="string">'失败'</span>.PHP_EOL;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>初看貌似没有什么问题，但其实有很严重的问题，如果，在setnx成功后，请求挂掉了，或者忘了delete锁，那么’lock_key’这个锁就被永远锁着，出现死锁了，后续的就没法使用了，解决办法，增加个过期时间（版本2.1）？让它一段时间后自动销毁。</p>
+<h4 id="版本2-1"><a href="#版本2-1" class="headerlink" title="版本2.1"></a>版本2.1</h4><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 上锁</span></div><div class="line"><span class="keyword">if</span>($redis-&gt;setnx(<span class="string">'lock_key'</span>, <span class="number">1</span>))&#123;</div><div class="line">	$redis-&gt;expire(<span class="string">'lock_key'</span>, <span class="number">1</span>);</div><div class="line">	<span class="keyword">echo</span> <span class="string">'成功'</span>.PHP_EOL;</div><div class="line">	<span class="comment">// 释放锁</span></div><div class="line">	$redis-&gt;delete(<span class="string">'lock_key'</span>);</div><div class="line">&#125;<span class="keyword">else</span>&#123;</div><div class="line">	<span class="keyword">echo</span> <span class="string">'失败'</span>.PHP_EOL;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>乍看没什么问题，其实问题还是存在，依旧是死锁的问题，只是问题的出现转移了，如果setnx成功，在expire前，请求挂掉，死锁出现。其实是，setnx和expire不是原子操作，那么用redis自带的事务操作会怎样呢？（版本2.2）</p>
+<h4 id="版本2-2"><a href="#版本2-2" class="headerlink" title="版本2.2"></a>版本2.2</h4><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$redis-&gt;multi();</div><div class="line">$redis-&gt;setnx(<span class="string">'lock_key'</span>, <span class="number">1</span>);</div><div class="line">$redis-&gt;expire(<span class="string">'lock_key'</span>, <span class="number">1</span>);</div><div class="line">$redis-&gt;exec();</div></pre></td></tr></table></figure>
+<p>用上事务，其实还是存在问题，那就是，请求过多的时候，锁的过期时间一直被更新，上锁那个家伙在手动释放锁之前退出了，就会导致锁一直有效。</p>
+<p>其实以上几种情况讨论的都是没有正常释放锁的情况，保证不出现死锁，过期时间确是一个正确思路，至少官方给出的思路就是用过期时间辅助实现。只是实现的方式不一样（版本3）。</p>
+<h4 id="版本3"><a href="#版本3" class="headerlink" title="版本3"></a>版本3</h4><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">$now = get_millisecond();</div><div class="line"></div><div class="line">$lock = $redis-&gt;setnx($lock_key,$lock_timeout);</div><div class="line"><span class="keyword">if</span>($lock <span class="keyword">or</span> (($now &gt; (float)$redis-&gt;get($lock_key)) <span class="keyword">and</span> $now &gt; (float)$redis-&gt;get_set($lock_key,$lock_timeout))) &#123;</div><div class="line">	<span class="keyword">echo</span> <span class="string">'成功'</span>.PHP_EOL;</div><div class="line">&#125;<span class="keyword">else</span>&#123;</div><div class="line">	<span class="keyword">echo</span> <span class="string">'失败'</span>.PHP_EOL;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>上版本使用setnx和get_set来实现。做法和上三个版本有什么不一样呢，setnx保存的value不是一个true or 1，而是过期的绝对时间戳，为什么这么做呢。</p>
+<p>来，我们回到死锁的情况，锁没有被释放掉，以后的请求setnx都会失败，这时候会进入第二步判断，判断锁是否超时失效了($now &gt; get($lock_key))，这时候get_set要出场了，看下下面的场景：<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">A setnx成功，过期时间戳为<span class="number">5</span>（这是绝对时间戳，为了简化阅读）；</div><div class="line">A没有delete锁，挂了；</div><div class="line">当前时间戳为<span class="number">6</span>($now &gt; get($lock_key)；<span class="number">6</span> &gt; <span class="number">5</span>)，那就是A设置的锁过期了；</div><div class="line">B请求锁，过期时间戳为<span class="number">10</span>；同时C也请求锁，过期时间戳为<span class="number">9</span>；</div><div class="line">假如C请求成功，C get_set 设置成<span class="number">9</span>，返回<span class="number">5</span>，$now == <span class="number">6</span>,<span class="number">6</span> &gt; <span class="number">5</span>,所以C获得锁；</div><div class="line">在C请求锁后，B也请求锁（慢一步，命运的安排），B get_set 设置成<span class="number">10</span>，返回<span class="number">9</span>，$now == <span class="number">6</span>,<span class="number">6</span> &lt; <span class="number">9</span>,表示锁有效，已经被别人获得并更新了，B没有获得锁；</div></pre></td></tr></table></figure></p>
+<p>这里在别人获得锁后，也被更新过期时间，但不像版本2.1那样，谁都会频繁更新过期时间，所以不会出现版本2.1那样锁长期有效。</p>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>这样的锁，肯定不是什么高大上的方法，但成本低，效果不错，满足大部分需求了，在我司的抽奖系统里很多地方都可以看到，经过线上考验。如果想要高大上的实现，可以考虑google chubby。</p>
+<p>参考：<a href="https://redis.io/commands/setnx" target="_blank" rel="external">Redis setnx</a><br>github：<a href="https://github.com/jiachuhuang/PHP-Redis-setnx-lock" target="_blank" rel="external">github源码</a></p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/06/PHP源码阅读in-array/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -427,7 +554,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">11</span>
+                <span class="site-state-item-count">12</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
@@ -440,7 +567,7 @@
             
             <div class="site-state-item site-state-tags">
               
-                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-count">3</span>
                 <span class="site-state-item-name">标签</span>
               
             </div>

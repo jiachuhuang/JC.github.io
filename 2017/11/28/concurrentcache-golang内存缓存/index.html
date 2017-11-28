@@ -1,0 +1,688 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.1" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="golang," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.1" />
+
+
+
+
+
+
+<meta name="description" content="concurrentcache是什么concurrentcache是golang版的内存缓存库，采用多Segment设计，支持不同Segment间并发写入，提高读写性能。  设想场景  内存缓存的实现，防止并发写冲突，都需要先获取写锁，再写入。如果只有一个存储空间，那么并发写入的时候只能有一个go程在操作，其他的都需要阻塞等待。为了提高并发写的性能，把存储空间切分成多个Segment，每个Segm">
+<meta name="keywords" content="golang">
+<meta property="og:type" content="article">
+<meta property="og:title" content="concurrentcache--golang内存缓存">
+<meta property="og:url" content="http://yoursite.com/2017/11/28/concurrentcache-golang内存缓存/index.html">
+<meta property="og:site_name" content="JC博客">
+<meta property="og:description" content="concurrentcache是什么concurrentcache是golang版的内存缓存库，采用多Segment设计，支持不同Segment间并发写入，提高读写性能。  设想场景  内存缓存的实现，防止并发写冲突，都需要先获取写锁，再写入。如果只有一个存储空间，那么并发写入的时候只能有一个go程在操作，其他的都需要阻塞等待。为了提高并发写的性能，把存储空间切分成多个Segment，每个Segm">
+<meta property="og:updated_time" content="2017-11-28T11:49:45.295Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="concurrentcache--golang内存缓存">
+<meta name="twitter:description" content="concurrentcache是什么concurrentcache是golang版的内存缓存库，采用多Segment设计，支持不同Segment间并发写入，提高读写性能。  设想场景  内存缓存的实现，防止并发写冲突，都需要先获取写锁，再写入。如果只有一个存储空间，那么并发写入的时候只能有一个go程在操作，其他的都需要阻塞等待。为了提高并发写的性能，把存储空间切分成多个Segment，每个Segm">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    sidebar: {"position":"right","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/11/28/concurrentcache-golang内存缓存/"/>
+
+
+
+
+
+  <title>concurrentcache--golang内存缓存 | JC博客</title>
+  
+
+
+
+
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?192e1d8dd47ae5fb30f7e0fc329b34d8";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-right page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">JC博客</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="https://github.com/jiachuhuang" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/28/concurrentcache-golang内存缓存/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="JCHuang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="JC博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">concurrentcache--golang内存缓存</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-28T17:42:23+08:00">
+                2017-11-28
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="concurrentcache是什么"><a href="#concurrentcache是什么" class="headerlink" title="concurrentcache是什么"></a>concurrentcache是什么</h1><p>concurrentcache是golang版的内存缓存库，采用多Segment设计，支持不同Segment间并发写入，提高读写性能。</p>
+<blockquote>
+<p>设想场景</p>
+</blockquote>
+<p>内存缓存的实现，防止并发写冲突，都需要先获取写锁，再写入。如果只有一个存储空间，那么并发写入的时候只能有一个go程在操作，其他的都需要阻塞等待。为了提高并发写的性能，把存储空间切分成多个Segment，每个Segment拥有一把写锁，那样，分布在不同Segment上的写操作就可以并发执行了。concurrentcache设计就是切分多个Segment，提高些并发写的效率。</p>
+<h1 id="concurrentcache设计思路"><a href="#concurrentcache设计思路" class="headerlink" title="concurrentcache设计思路"></a>concurrentcache设计思路</h1><figure class="highlight golang"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// ConcurrentCache结构体，包含一个ConcurrentCacheSegment切片</span></div><div class="line"><span class="keyword">type</span> ConcurrentCache <span class="keyword">struct</span> &#123;</div><div class="line">    segment []*ConcurrentCacheSegment</div><div class="line">    sCount <span class="keyword">uint32</span></div><div class="line">&#125;</div><div class="line"><span class="comment">// ConcurrentCacheSegment结构体，内部使用一个map存储数据</span></div><div class="line"><span class="keyword">type</span> ConcurrentCacheSegment <span class="keyword">struct</span> &#123;</div><div class="line">    sync.RWMutex</div><div class="line">    data <span class="keyword">map</span>[<span class="keyword">string</span>]*ConcurrentCacheNode</div><div class="line">    lvPool <span class="keyword">map</span>[<span class="keyword">string</span>]*ConcurrentCacheNode</div><div class="line">    dCount <span class="keyword">uint32</span></div><div class="line">    dLen <span class="keyword">uint32</span></div><div class="line">    pool *sync.Pool</div><div class="line">    hits <span class="keyword">uint64</span></div><div class="line">    miss <span class="keyword">uint64</span></div><div class="line">    now time.Time</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">type</span> ConcurrentCacheNode <span class="keyword">struct</span> &#123;</div><div class="line">    V <span class="keyword">interface</span>&#123;&#125;</div><div class="line">    visit <span class="keyword">uint32</span></div><div class="line">    lifeExp time.Duration</div><div class="line">    createTime time.Time</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="写"><a href="#写" class="headerlink" title="写"></a>写</h2><p>从ConcurrentCache结构体可以看出，包含一个ConcurrentCacheSegment切片，sCount表示切片的长度，这个切片的长度，在初始化的时候就确定，不再改变。<br>ConcurrentCacheSegment内包含一个读写锁，写入时候根据key的hash值选取写入到哪一个Segment内，通过多Segment设计，来提高写并发效率。</p>
+<h2 id="读"><a href="#读" class="headerlink" title="读"></a>读</h2><p>为了提高读效率，尽可能多的减少读过程对内存缓存的修改，使用golang提供的原子操作来修改访问状态（visit、miss、hits等），遇到缓存过期的节点也不马上淘汰，因为读访问上的是读锁，要删除数据需要用到写互斥锁，这样会降低读的并发性，所以推迟删除过期的节点，当写数据，Segment的节点不够用的时候再去删除过期节点。</p>
+<h1 id="concurrentcache缓存淘汰方式"><a href="#concurrentcache缓存淘汰方式" class="headerlink" title="concurrentcache缓存淘汰方式"></a>concurrentcache缓存淘汰方式</h1><p>concurrentcache缓存淘汰方式采用随机选取3个节点，优先淘汰其中过期的一个节点（上一步说的推迟删除过期节点），如果没有过期节点就选取访问量最少（ConcurrentCacheNode结构体中的visit）的节点淘汰。这个思路是参考redis的缓存淘汰策略，redis并不是严格lru算法，采用的是随机选取样本的做法。这样做也是为了提高写性能。</p>
+<h1 id="concurrentcache-amp-cache2go-性能对比"><a href="#concurrentcache-amp-cache2go-性能对比" class="headerlink" title="concurrentcache &amp; cache2go 性能对比"></a>concurrentcache &amp; cache2go 性能对比</h1><p>（MBP 16G版本）<br>concurrentcache和cache2go进行了并发下的压测对比，对比结果，concurrentcache无论是执行时间还是内存占比，都比cache2go优</p>
+<h2 id="concurrentcache"><a href="#concurrentcache" class="headerlink" title="concurrentcache"></a>concurrentcache</h2><figure class="highlight golang"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">BenchmarkConcurrentCache_Set<span class="number">-8</span>           <span class="number">3000000</span>               <span class="number">573</span> ns/op             <span class="number">190</span> B/op          <span class="number">2</span> allocs/op</div><div class="line">BenchmarkConcurrentCache_Set<span class="number">-8</span>           <span class="number">2000000</span>               <span class="number">634</span> ns/op             <span class="number">235</span> B/op          <span class="number">3</span> allocs/op</div><div class="line">BenchmarkConcurrentCache_Set<span class="number">-8</span>           <span class="number">3000000</span>               <span class="number">535</span> ns/op             <span class="number">190</span> B/op          <span class="number">2</span> allocs/op</div><div class="line">BenchmarkConcurrentCache_Get<span class="number">-8</span>           <span class="number">5000000</span>               <span class="number">235</span> ns/op              <span class="number">36</span> B/op          <span class="number">1</span> allocs/op</div><div class="line">BenchmarkConcurrentCache_Get<span class="number">-8</span>           <span class="number">5000000</span>               <span class="number">234</span> ns/op              <span class="number">36</span> B/op          <span class="number">1</span> allocs/op</div><div class="line">BenchmarkConcurrentCache_Get<span class="number">-8</span>           <span class="number">5000000</span>               <span class="number">234</span> ns/op              <span class="number">36</span> B/op          <span class="number">1</span> allocs/op</div></pre></td></tr></table></figure>
+<h2 id="cache2go"><a href="#cache2go" class="headerlink" title="cache2go"></a>cache2go</h2><figure class="highlight golang"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">BenchmarkCacheTable_Add<span class="number">-8</span>        <span class="number">1000000</span>          <span class="number">1858</span> ns/op         <span class="number">480</span> B/op         <span class="number">10</span> allocs/op</div><div class="line">BenchmarkCacheTable_Value<span class="number">-8</span>      <span class="number">5000000</span>           <span class="number">300</span> ns/op          <span class="number">60</span> B/op          <span class="number">2</span> allocs/op</div></pre></td></tr></table></figure>
+<p><a href="https://github.com/jiachuhuang/concurrentcache" target="_blank" rel="external">concurrentcache源码</a></p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/golang/" rel="tag"># golang</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/09/19/PHP扩展-ratelimit本地服务器限流/" rel="next" title="PHP扩展--ratelimit本地服务器限流">
+                <i class="fa fa-chevron-left"></i> PHP扩展--ratelimit本地服务器限流
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/avatar.gif"
+               alt="JCHuang" />
+          <p class="site-author-name" itemprop="name">JCHuang</p>
+           
+              <p class="site-description motion-element" itemprop="description">街边太多人与车<br>繁华闹市人醉夜<br>害怕下班等很久<br>怀念很久也不够</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives/">
+                <span class="site-state-item-count">12</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">标签</span>
+              
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#concurrentcache是什么"><span class="nav-number">1.</span> <span class="nav-text">concurrentcache是什么</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#concurrentcache设计思路"><span class="nav-number">2.</span> <span class="nav-text">concurrentcache设计思路</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#写"><span class="nav-number">2.1.</span> <span class="nav-text">写</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#读"><span class="nav-number">2.2.</span> <span class="nav-text">读</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#concurrentcache缓存淘汰方式"><span class="nav-number">3.</span> <span class="nav-text">concurrentcache缓存淘汰方式</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#concurrentcache-amp-cache2go-性能对比"><span class="nav-number">4.</span> <span class="nav-text">concurrentcache & cache2go 性能对比</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#concurrentcache"><span class="nav-number">4.1.</span> <span class="nav-text">concurrentcache</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#cache2go"><span class="nav-number">4.2.</span> <span class="nav-text">cache2go</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">JCHuang</span>
+</div>
+
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.1"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.1"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
