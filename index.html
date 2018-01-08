@@ -266,6 +266,139 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/12/25/高效定时器的实现/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="JCHuang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="JC博客">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/12/25/高效定时器的实现/" itemprop="url">高效定时器的实现</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-12-25T11:33:06+08:00">
+                2017-12-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="场景"><a href="#场景" class="headerlink" title="场景"></a>场景</h1><p>linux crontab在实现定时任务中起到重要的作用，那如果我们去实现定时一个contab又如何实现呢？怎么样才能高效呢？本文会介绍Nginx内部的定时器的实现和golang的Tick定时器的实现。</p>
+<h1 id="常规思路"><a href="#常规思路" class="headerlink" title="常规思路"></a>常规思路</h1><p>在一个死循环里每秒（精度为秒）去轮询查看有没有到期的任务需要执行。</p>
+<h2 id="问题一"><a href="#问题一" class="headerlink" title="问题一"></a>问题一</h2><p>有必要每秒轮询一次吗？下一秒、下下一秒、下下下一秒都不一定会有到期执行的任务，那样不就浪费了CPU了，为何不一直休眠到最近一个到期的任务的时间点，再去遍历呢？</p>
+<h2 id="问题二"><a href="#问题二" class="headerlink" title="问题二"></a>问题二</h2><p>用什么样的数据结构去存储所有任务，才能起到高效的轮询呢？用数组？每次都遍历一遍？很明显，不高效。在Nginx里，使用了红黑树，golang中使用了小堆。</p>
+<h1 id="golang-tick实现"><a href="#golang-tick实现" class="headerlink" title="golang tick实现"></a>golang tick实现</h1><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">type</span> timer <span class="keyword">struct</span> &#123;</div><div class="line">    i <span class="keyword">int</span> <span class="comment">// heap index</span></div><div class="line">    when   <span class="keyword">int64</span></div><div class="line">    period <span class="keyword">int64</span></div><div class="line">    f      <span class="function"><span class="keyword">func</span><span class="params">(<span class="keyword">interface</span>&#123;&#125;, <span class="keyword">uintptr</span>)</span></span></div><div class="line">    <span class="title">arg</span>    <span class="title">interface</span>&#123;&#125;</div><div class="line">    seq    <span class="keyword">uintptr</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>golang用一个timer结构体来表示一个定时任务，其中when表示到期的绝对时间戳，也是用来进行排序构建小堆的关键字段。这样子，最先到期的任务，就会是小堆堆头的那个节点了。period字段用来表示是否循环执行这个定时任务，如果是循环任务，执行完后会重新修改when为下一次执行的时间点，调整小堆。否则，把定时任务从小堆中删除。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">addtimerLocked</span><span class="params">(t *timer)</span></span> &#123;</div><div class="line">    <span class="keyword">if</span> t.when &lt; <span class="number">0</span> &#123;</div><div class="line">        t.when = <span class="number">1</span>&lt;&lt;<span class="number">63</span> - <span class="number">1</span></div><div class="line">    &#125;</div><div class="line">    t.i = <span class="built_in">len</span>(timers.t)</div><div class="line">    timers.t = <span class="built_in">append</span>(timers.t, t) <span class="comment">// 插入到小堆尾部</span></div><div class="line">    siftupTimer(t.i)  <span class="comment">// 堆调整</span></div><div class="line">    <span class="keyword">if</span> t.i == <span class="number">0</span> &#123;</div><div class="line">        <span class="comment">// 如果新加入的timer比之前最早到期的timer还早</span></div><div class="line">        <span class="comment">// 更新后台运行的检查到期timer 的 goroutine 的睡眠时间</span></div><div class="line">        <span class="keyword">if</span> timers.sleeping &#123;</div><div class="line">            timers.sleeping = <span class="literal">false</span></div><div class="line">            notewakeup(&amp;timers.waitnote)</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">if</span> timers.rescheduling &#123;</div><div class="line">            timers.rescheduling = <span class="literal">false</span></div><div class="line">            goready(timers.gp, <span class="number">0</span>)</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">if</span> !timers.created &#123;</div><div class="line">        <span class="comment">// 如果是第一次创建的定时器维护</span></div><div class="line">        <span class="comment">// 启动一条后台goroutine来维护定时器</span></div><div class="line">        timers.created = <span class="literal">true</span></div><div class="line">        <span class="keyword">go</span> timerproc()</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">timerproc</span><span class="params">()</span></span> &#123;</div><div class="line">    timers.gp = getg()</div><div class="line">    <span class="keyword">for</span> &#123;</div><div class="line">        lock(&amp;timers.lock)</div><div class="line">        timers.sleeping = <span class="literal">false</span></div><div class="line">        now := nanotime()</div><div class="line">        delta := <span class="keyword">int64</span>(<span class="number">-1</span>)</div><div class="line">        <span class="keyword">for</span> &#123;</div><div class="line">            <span class="keyword">if</span> <span class="built_in">len</span>(timers.t) == <span class="number">0</span> &#123;</div><div class="line">                delta = <span class="number">-1</span></div><div class="line">                <span class="keyword">break</span></div><div class="line">            &#125;</div><div class="line">            t := timers.t[<span class="number">0</span>] <span class="comment">// 获取小堆第一个定时任务，即最早到期的任务</span></div><div class="line">            delta = t.when - now</div><div class="line">            <span class="keyword">if</span> delta &gt; <span class="number">0</span> &#123;</div><div class="line">                <span class="keyword">break</span></div><div class="line">            &#125;</div><div class="line">            <span class="keyword">if</span> t.period &gt; <span class="number">0</span> &#123;</div><div class="line">                <span class="comment">// 如果是循环执行的定时任务，重新计算下次执行时间，重新调整堆内位置</span></div><div class="line">                t.when += t.period * (<span class="number">1</span> + -delta/t.period)</div><div class="line">                siftdownTimer(<span class="number">0</span>)</div><div class="line">            &#125; <span class="keyword">else</span> &#123;</div><div class="line">                <span class="comment">// 如果是只执行一次，直接把它从堆内删除</span></div><div class="line">                last := <span class="built_in">len</span>(timers.t) - <span class="number">1</span></div><div class="line">                <span class="keyword">if</span> last &gt; <span class="number">0</span> &#123;</div><div class="line">                    timers.t[<span class="number">0</span>] = timers.t[last]</div><div class="line">                    timers.t[<span class="number">0</span>].i = <span class="number">0</span></div><div class="line">                &#125;</div><div class="line">                timers.t[last] = <span class="literal">nil</span></div><div class="line">                timers.t = timers.t[:last]</div><div class="line">                <span class="keyword">if</span> last &gt; <span class="number">0</span> &#123;</div><div class="line">                    siftdownTimer(<span class="number">0</span>)</div><div class="line">                &#125;</div><div class="line">                t.i = <span class="number">-1</span> <span class="comment">// mark as removed</span></div><div class="line">            &#125;</div><div class="line">            f := t.f</div><div class="line">            arg := t.arg</div><div class="line">            seq := t.seq</div><div class="line">            unlock(&amp;timers.lock)</div><div class="line">            <span class="keyword">if</span> raceenabled &#123;</div><div class="line">                raceacquire(unsafe.Pointer(t))</div><div class="line">            &#125;</div><div class="line">            <span class="comment">// 找到到期的任务，并执行</span></div><div class="line">            f(arg, seq)</div><div class="line">            lock(&amp;timers.lock)</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">if</span> delta &lt; <span class="number">0</span> || faketime &gt; <span class="number">0</span> &#123;</div><div class="line">            <span class="comment">// No timers left - put goroutine to sleep.</span></div><div class="line">            timers.rescheduling = <span class="literal">true</span></div><div class="line">            goparkunlock(&amp;timers.lock, <span class="string">"timer goroutine (idle)"</span>, traceEvGoBlock, <span class="number">1</span>)</div><div class="line">            <span class="keyword">continue</span></div><div class="line">        &#125;</div><div class="line">        <span class="comment">// 休眠到最早到期的定时任务</span></div><div class="line">        timers.sleeping = <span class="literal">true</span></div><div class="line">        noteclear(&amp;timers.waitnote)</div><div class="line">        unlock(&amp;timers.lock)</div><div class="line">        notetsleepg(&amp;timers.waitnote, delta)</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h1 id="Nginx定时器"><a href="#Nginx定时器" class="headerlink" title="Nginx定时器"></a>Nginx定时器</h1><p>Nginx运用定时器的地方很多，例如读取http头部超时。Nginx使用红黑树维护所有定时任务事件，进程在每次事件轮询返回后，都会检查一遍红黑树，处理过期的定时事件，设置ngx_event_t结构体里的timedout字段为1。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// ngx_event_timer.h</span></div><div class="line"><span class="keyword">ngx_int_t</span> ngx_event_timer_init(<span class="keyword">ngx_log_t</span> *<span class="built_in">log</span>); <span class="comment">// 初始化定时任务管理器</span></div><div class="line"><span class="keyword">ngx_msec_t</span> ngx_event_find_timer(<span class="keyword">void</span>);          <span class="comment">// 查找定时恩物</span></div><div class="line"><span class="function"><span class="keyword">void</span> <span class="title">ngx_event_expire_timers</span><span class="params">(<span class="keyword">void</span>)</span></span>;             <span class="comment">// 处理过期的定时任务</span></div><div class="line"><span class="keyword">ngx_int_t</span> ngx_event_no_timers_left(<span class="keyword">void</span>);</div><div class="line"></div><div class="line"></div><div class="line"><span class="keyword">extern</span> <span class="keyword">ngx_rbtree_t</span>  ngx_event_timer_rbtree;    <span class="comment">// 全局变量，维护保存所有定时任务时间</span></div></pre></td></tr></table></figure>
+<ul>
+<li><p>Nginx woker进程检查处理过期的定时事件</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// worker的事件和定时任务处理函数</span></div><div class="line"><span class="function"><span class="keyword">void</span></span></div><div class="line"><span class="title">ngx_process_events_and_timers</span><span class="params">(<span class="keyword">ngx_cycle_t</span> *cycle)</span></div><div class="line">&#123;</div><div class="line">    <span class="keyword">ngx_uint_t</span>  flags;</div><div class="line">    <span class="keyword">ngx_msec_t</span>  timer, delta;</div><div class="line"></div><div class="line">    <span class="comment">// ...</span></div><div class="line"></div><div class="line">    delta = ngx_current_msec;</div><div class="line"></div><div class="line">    (<span class="keyword">void</span>) ngx_process_events(cycle, timer, flags);</div><div class="line"></div><div class="line">    delta = ngx_current_msec - delta;</div><div class="line"></div><div class="line">    ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle-&gt;<span class="built_in">log</span>, <span class="number">0</span>,</div><div class="line">                   <span class="string">"timer delta: %M"</span>, delta);</div><div class="line"></div><div class="line">    <span class="comment">// 事件处理</span></div><div class="line">    ngx_event_process_posted(cycle, &amp;ngx_posted_accept_events);</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (ngx_accept_mutex_held) &#123;</div><div class="line">        ngx_shmtx_unlock(&amp;ngx_accept_mutex);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">if</span> (delta) &#123;</div><div class="line">        <span class="comment">// 处理过期的定时任务</span></div><div class="line">        ngx_event_expire_timers();</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// ...</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>ngx_event_expire_timers过期定时任务处理</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">void</span></span></div><div class="line"><span class="title">ngx_event_expire_timers</span><span class="params">(<span class="keyword">void</span>)</span></div><div class="line">&#123;</div><div class="line">    <span class="keyword">ngx_event_t</span>        *ev;</div><div class="line">    <span class="keyword">ngx_rbtree_node_t</span>  *node, *root, *sentinel;</div><div class="line"></div><div class="line">    sentinel = ngx_event_timer_rbtree.sentinel;</div><div class="line"></div><div class="line">    <span class="comment">// 循环查找处理当前所有过期的时间</span></div><div class="line">    <span class="keyword">for</span> ( ;; ) &#123;</div><div class="line">        root = ngx_event_timer_rbtree.root;</div><div class="line"></div><div class="line">        <span class="keyword">if</span> (root == sentinel) &#123;</div><div class="line">            <span class="keyword">return</span>;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        node = ngx_rbtree_min(root, sentinel);  <span class="comment">// 在红黑树种查找当前时间最小的节点</span></div><div class="line"></div><div class="line">        <span class="keyword">if</span> ((<span class="keyword">ngx_msec_int_t</span>) (node-&gt;key - ngx_current_msec) &gt; <span class="number">0</span>) &#123;</div><div class="line">            <span class="comment">// 如果时间最小的节点都还没过期，直接返回</span></div><div class="line">            <span class="keyword">return</span>;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        ev = (<span class="keyword">ngx_event_t</span> *) ((<span class="keyword">char</span> *) node - offsetof(<span class="keyword">ngx_event_t</span>, timer));</div><div class="line"></div><div class="line">        ngx_log_debug2(NGX_LOG_DEBUG_EVENT, ev-&gt;<span class="built_in">log</span>, <span class="number">0</span>,</div><div class="line">                       <span class="string">"event timer del: %d: %M"</span>,</div><div class="line">                       ngx_event_ident(ev-&gt;data), ev-&gt;timer.key);</div><div class="line"></div><div class="line">        ngx_rbtree_delete(&amp;ngx_event_timer_rbtree, &amp;ev-&gt;timer); <span class="comment">// 把时间从红黑树种删除</span></div><div class="line">        ev-&gt;timer_set = <span class="number">0</span>;</div><div class="line">        ev-&gt;timedout = <span class="number">1</span>;  <span class="comment">// 把时间设为过期</span></div><div class="line">        ev-&gt;handler(ev);   <span class="comment">// 回调事件处理函数</span></div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>回调事件处理函数，拿http头部处理函数（ngx_http_process_request_headers）来举例吧</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span></span></div><div class="line"><span class="title">ngx_http_process_request_headers</span><span class="params">(<span class="keyword">ngx_event_t</span> *rev)</span></div><div class="line">&#123;</div><div class="line">    <span class="comment">// ...</span></div><div class="line">    </div><div class="line">    c = rev-&gt;data;</div><div class="line">    r = c-&gt;data;</div><div class="line"></div><div class="line">    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, rev-&gt;<span class="built_in">log</span>, <span class="number">0</span>,</div><div class="line">                   <span class="string">"http process request header line"</span>);</div><div class="line"></div><div class="line">    <span class="comment">// 如果过期了，在上一步ngx_event_expire_timers中，timedout字段会被设为1，表示头部处理超时了，就给客户端错误提示</span></div><div class="line">    <span class="keyword">if</span> (rev-&gt;timedout) &#123;</div><div class="line">        ngx_log_error(NGX_LOG_INFO, c-&gt;<span class="built_in">log</span>, NGX_ETIMEDOUT, <span class="string">"client timed out"</span>);</div><div class="line">        c-&gt;timedout = <span class="number">1</span>;</div><div class="line">        <span class="comment">// 超时，关闭链接，发送request timeout错误</span></div><div class="line">        ngx_http_close_request(r, NGX_HTTP_REQUEST_TIME_OUT);</div><div class="line">        <span class="keyword">return</span>;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">// ...</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>实现一个定时任务调度器，需要一个进程（线程或者协程） + 一个高效数据结构（满足高效查询、频繁插入删除），例如Nginx使用的红黑树、golang使用的小堆，或者skip list（跳跃表），跳跃表是有序链表，同时插入、删除、查找性能效率也不俗，实现起来还容易，可以考虑下。</p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/28/concurrentcache-golang内存缓存/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1432,206 +1565,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/06/PHP源码阅读strstr/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="JCHuang">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="JC博客">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/07/06/PHP源码阅读strstr/" itemprop="url">PHP源码阅读strstr</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-06T16:08:50+08:00">
-                2017-07-06
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="strstr"><a href="#strstr" class="headerlink" title="strstr"></a>strstr</h2><p>搜索字符串在另一字符串中的第一次出现，并返回剩余部分。</p>
-<h2 id="时间复杂度"><a href="#时间复杂度" class="headerlink" title="时间复杂度"></a>时间复杂度</h2><p>O(n+m)</p>
-<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>strstr实现思路是，先查询子串的位置，返回该位置后的字符串。核心函数是 zend_memnstr_ex，使用的子串搜索算法是Sunday算法，这个具体就不说了。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// zend_memnstr_ex</span></div><div class="line">zend_memnstr_ex_pre(td, needle, needle_len, <span class="number">0</span>); <span class="comment">// 初始化跳转表</span></div><div class="line"></div><div class="line">p = haystack;</div><div class="line">end -= needle_len;</div><div class="line"></div><div class="line"><span class="keyword">while</span> (p &lt;= end) &#123;</div><div class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; needle_len; i++) &#123;</div><div class="line">		<span class="keyword">if</span> (needle[i] != p[i]) &#123;</div><div class="line">			<span class="keyword">break</span>;</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> (i == needle_len) &#123;</div><div class="line">		<span class="keyword">return</span> p;</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> (UNEXPECTED(p == end)) &#123;</div><div class="line">		<span class="keyword">return</span> <span class="keyword">NULL</span>;</div><div class="line">	&#125;</div><div class="line">	p += td[(unsigned char)(p[needle_len])];  <span class="comment">// 如果查询失败，通过跳转表决定搜索从搜索串什么位置开始</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// zend_memnstr_ex_pre 构造跳转表</span></div><div class="line"><span class="comment">// Sunday算法重要的一部分，构造跳转表</span></div><div class="line"><span class="comment">// 跳转表是个256位长的数组</span></div><div class="line"><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; <span class="number">256</span>; i++) &#123;</div><div class="line">	td[i] = needle_len + <span class="number">1</span>;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">if</span> (reverse) &#123;</div><div class="line">	<span class="keyword">for</span> (i = needle_len - <span class="number">1</span>; i &gt;= <span class="number">0</span>; i--) &#123;</div><div class="line">		td[(unsigned char)needle[i]] = i + <span class="number">1</span>;</div><div class="line">	&#125;</div><div class="line">&#125; <span class="keyword">else</span> &#123;</div><div class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; needle_len; i++) &#123;</div><div class="line">		<span class="comment">// 例如子串是 aba</span></div><div class="line">		<span class="comment">// 最后跳转表，td = array('a' =&gt; 1, 'b' =&gt; 2, '其他' =&gt; 4)</span></div><div class="line">		td[(unsigned char)needle[i]] = (int)needle_len - i;</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<h2 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h2><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">strstr(<span class="string">'bfabceabadde'</span>, <span class="string">'aba'</span>);</div></pre></td></tr></table></figure>
-<p>1、zend_memnstr_ex_pre 构造跳转表，如下：</p>
-<table>
-<thead>
-<tr>
-<th>a</th>
-<th>b</th>
-<th>其他</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>2</td>
-<td>4</td>
-</tr>
-</tbody>
-</table>
-<p>2、查询过程</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th>b</th>
-<th>f</th>
-<th>a</th>
-<th>b</th>
-<th>c</th>
-<th>e</th>
-<th>a</th>
-<th>b</th>
-<th>a</th>
-<th>d</th>
-<th>d</th>
-<th>e </th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>a</td>
-<td>b</td>
-<td>a</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>2</td>
-<td></td>
-<td></td>
-<td>a</td>
-<td>b</td>
-<td>a</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>3</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td>a</td>
-<td>b</td>
-<td>a</td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">第一步，b ！= a，源码第<span class="number">9</span>行，跳出来；接着，源码<span class="number">19</span>行，查找下一个查询从哪里开始；</div><div class="line">p += td[(unsigned char)(p[needle_len])]，此时的p[needle_len]为<span class="string">'b'</span>；</div><div class="line">相当于，p += td[<span class="string">'b'</span>]，看跳转表，p += <span class="number">2</span>，所以跳到了第二步的位置；</div><div class="line"></div><div class="line">如果使用朴素算法，时间复杂度就是O(n*m)了。</div></pre></td></tr></table></figure>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
   </section>
 
   
@@ -1681,7 +1614,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives/">
-                <span class="site-state-item-count">12</span>
+                <span class="site-state-item-count">13</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
@@ -1694,7 +1627,7 @@
             
             <div class="site-state-item site-state-tags">
               
-                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-count">4</span>
                 <span class="site-state-item-name">标签</span>
               
             </div>
@@ -1736,7 +1669,7 @@
         <div class="copyright" >
   
   &copy; 
-  <span itemprop="copyrightYear">2017</span>
+  <span itemprop="copyrightYear">2018</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
